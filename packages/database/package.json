@@ -1,0 +1,30 @@
+{
+  "name": "@atendente/database",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "prisma generate && tsc --noEmit -p tsconfig.test.json",
+    "build": "prisma generate && tsc",
+    "generate": "prisma generate",
+    "test": "prisma generate && tsc -p tsconfig.test.json && node --test .test-dist/test/unit.test.js",
+    "test:integration": "prisma generate && tsc -p tsconfig.test.json && node --test .test-dist/test/integration.test.js",
+    "db:validate": "prisma validate",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:seed": "pnpm build && prisma db seed"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0"
+  },
+  "devDependencies": {
+    "dotenv": "^17.4.2",
+    "prisma": "7.10.0"
+  }
+}

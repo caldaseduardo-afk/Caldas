@@ -11,9 +11,11 @@ Cada tarefa deve possuir testes e critérios de aceite.
 ## TASK-001 — Inicializar monorepo
 
 ### Objetivo
+
 Criar estrutura inicial.
 
 ### Entrega
+
 - pnpm workspace;
 - Turborepo;
 - `apps/web`;
@@ -31,6 +33,7 @@ Criar estrutura inicial.
 - Docker local.
 
 ### Aceite
+
 `pnpm install`, lint, typecheck e testes devem executar com sucesso.
 
 ---
@@ -38,9 +41,11 @@ Criar estrutura inicial.
 ## TASK-002 — PostgreSQL + Prisma
 
 ### Objetivo
+
 Configurar banco e migrations.
 
 ### Entrega
+
 - Prisma;
 - PostgreSQL;
 - UUID;
@@ -50,6 +55,7 @@ Configurar banco e migrations.
 - seed mínimo de desenvolvimento.
 
 ### Aceite
+
 Banco sobe localmente e migrations funcionam do zero.
 
 ---
@@ -57,6 +63,7 @@ Banco sobe localmente e migrations funcionam do zero.
 ## TASK-003 — Autenticação
 
 ### Entrega
+
 - usuário;
 - senha com hash seguro;
 - login;
@@ -66,6 +73,7 @@ Banco sobe localmente e migrations funcionam do zero.
 - base para MFA.
 
 ### Aceite
+
 Rotas privadas bloqueadas sem sessão.
 
 ---
@@ -73,6 +81,7 @@ Rotas privadas bloqueadas sem sessão.
 ## TASK-004 — Multi-tenancy
 
 ### Entrega
+
 - Tenant;
 - UserTenant;
 - tenant ativo;
@@ -80,6 +89,7 @@ Rotas privadas bloqueadas sem sessão.
 - isolamento em services/repositories.
 
 ### Aceite
+
 Teste prova que Tenant A não acessa Tenant B.
 
 ---
@@ -87,12 +97,14 @@ Teste prova que Tenant A não acessa Tenant B.
 ## TASK-005 — RBAC
 
 ### Entrega
+
 - roles;
 - permissions;
 - guards;
 - seed de permissões.
 
 ### Aceite
+
 Permissões críticas cobertas por testes.
 
 ---
@@ -100,6 +112,7 @@ Permissões críticas cobertas por testes.
 ## TASK-006 — Clínicas e unidades
 
 ### Entrega
+
 CRUD de tenant/unidades dentro das permissões definidas.
 
 ---
@@ -107,6 +120,7 @@ CRUD de tenant/unidades dentro das permissões definidas.
 ## TASK-007 — Contatos e canais
 
 ### Entrega
+
 - Contact;
 - ContactChannel;
 - busca por telefone;
@@ -117,6 +131,7 @@ CRUD de tenant/unidades dentro das permissões definidas.
 ## TASK-008 — Pacientes e representantes
 
 ### Entrega
+
 - Patient;
 - ContactPatient;
 - vínculos;
@@ -124,6 +139,7 @@ CRUD de tenant/unidades dentro das permissões definidas.
 - paciente ativo.
 
 ### Aceite
+
 Contato sem autorização não acessa dados de paciente.
 
 ---
@@ -131,6 +147,7 @@ Contato sem autorização não acessa dados de paciente.
 ## TASK-009 — Especialidades e serviços
 
 ### Entrega
+
 - Specialty;
 - Service;
 - duração;
@@ -142,6 +159,7 @@ Contato sem autorização não acessa dados de paciente.
 ## TASK-010 — Profissionais
 
 ### Entrega
+
 - Provider;
 - ProviderService;
 - vínculo com unidades.
@@ -151,6 +169,7 @@ Contato sem autorização não acessa dados de paciente.
 ## TASK-011 — Disponibilidade
 
 ### Entrega
+
 - AvailabilityRule;
 - ScheduleException;
 - serviço para cálculo de disponibilidade.
@@ -160,11 +179,13 @@ Contato sem autorização não acessa dados de paciente.
 ## TASK-012 — HOLD
 
 ### Entrega
+
 - AppointmentHold;
 - expiração;
 - prevenção de concorrência.
 
 ### Aceite
+
 Dois HOLDs não ocupam o mesmo recurso/slot.
 
 ---
@@ -172,6 +193,7 @@ Dois HOLDs não ocupam o mesmo recurso/slot.
 ## TASK-013 — Consultas
 
 ### Entrega
+
 - Appointment;
 - estados;
 - criação;
@@ -184,6 +206,7 @@ Dois HOLDs não ocupam o mesmo recurso/slot.
 ## TASK-014 — Notification Rules
 
 ### Entrega
+
 - confirmação;
 - lembrete;
 - janela;
@@ -192,6 +215,7 @@ Dois HOLDs não ocupam o mesmo recurso/slot.
 - retry.
 
 ### Aceite
+
 Teste do cenário consulta 08:00 + offset 4h + janela 08–20.
 
 ---
@@ -199,6 +223,7 @@ Teste do cenário consulta 08:00 + offset 4h + janela 08–20.
 ## TASK-015 — Conversas
 
 ### Entrega
+
 - Conversation;
 - Message;
 - estados;
@@ -210,6 +235,7 @@ Teste do cenário consulta 08:00 + offset 4h + janela 08–20.
 ## TASK-016 — Inbox Web
 
 ### Entrega
+
 - lista;
 - busca;
 - filtros;
@@ -222,6 +248,7 @@ Teste do cenário consulta 08:00 + offset 4h + janela 08–20.
 ## TASK-017 — WebSocket
 
 ### Entrega
+
 Atualização em tempo real das conversas.
 
 ---
@@ -229,6 +256,7 @@ Atualização em tempo real das conversas.
 ## TASK-018 — Handoff humano
 
 ### Entrega
+
 - assumir;
 - lock;
 - transferir;
@@ -240,6 +268,7 @@ Atualização em tempo real das conversas.
 ## TASK-019 — SLA humano
 
 ### Entrega
+
 - regras;
 - jobs;
 - alertas;
@@ -250,6 +279,7 @@ Atualização em tempo real das conversas.
 ## TASK-020 — WhatsApp Provider
 
 ### Entrega
+
 - provider;
 - webhook;
 - validação;
@@ -262,6 +292,7 @@ Atualização em tempo real das conversas.
 ## TASK-021 — AI Provider
 
 ### Entrega
+
 - interface;
 - implementação OpenAI;
 - configuração;
@@ -273,9 +304,11 @@ Atualização em tempo real das conversas.
 ## TASK-022 — Tool Gateway
 
 ### Entrega
+
 Tools autorizadas e schemas.
 
 ### Aceite
+
 Nenhuma tool acessa dados sem tenant e autorização.
 
 ---
@@ -283,6 +316,7 @@ Nenhuma tool acessa dados sem tenant e autorização.
 ## TASK-023 — Conversation Engine
 
 ### Entrega
+
 - roteamento;
 - intenção;
 - IA/humano;
@@ -294,6 +328,7 @@ Nenhuma tool acessa dados sem tenant e autorização.
 ## TASK-024 — Agendamento via IA
 
 ### Entrega
+
 - identificar serviço;
 - buscar slots;
 - HOLD;
@@ -305,6 +340,7 @@ Nenhuma tool acessa dados sem tenant e autorização.
 ## TASK-025 — Cancelamento/remarcação via IA
 
 ### Entrega
+
 Respeitar regras de clínica e autorização.
 
 ---
@@ -312,6 +348,7 @@ Respeitar regras de clínica e autorização.
 ## TASK-026 — Base de conhecimento
 
 ### Entrega
+
 Conteúdo por tenant e retrieval controlado.
 
 ---
@@ -319,6 +356,7 @@ Conteúdo por tenant e retrieval controlado.
 ## TASK-027 — Configuração/versionamento da IA
 
 ### Entrega
+
 - configuração;
 - versões;
 - publicar;
@@ -330,6 +368,7 @@ Conteúdo por tenant e retrieval controlado.
 ## TASK-028 — Worker e automações
 
 ### Entrega
+
 - BullMQ;
 - confirmação;
 - lembrete;
@@ -341,6 +380,7 @@ Conteúdo por tenant e retrieval controlado.
 ## TASK-029 — Google Calendar Provider
 
 ### Entrega
+
 - provider;
 - criação;
 - alteração;
@@ -353,6 +393,7 @@ Conteúdo por tenant e retrieval controlado.
 ## TASK-030 — Auditoria completa
 
 ### Entrega
+
 Audit log para operações críticas.
 
 ---
@@ -360,6 +401,7 @@ Audit log para operações críticas.
 ## TASK-031 — Dashboard clínica
 
 ### Entrega
+
 KPIs operacionais.
 
 ---
@@ -367,6 +409,7 @@ KPIs operacionais.
 ## TASK-032 — Super Admin
 
 ### Entrega
+
 - clínicas;
 - status;
 - consumo;
@@ -378,6 +421,7 @@ KPIs operacionais.
 ## TASK-033 — Planos e consumo
 
 ### Entrega
+
 Estrutura básica de planos, limites e alertas.
 
 ---
@@ -385,6 +429,7 @@ Estrutura básica de planos, limites e alertas.
 ## TASK-034 — Hardening
 
 ### Entrega
+
 - rate limiting;
 - headers;
 - testes de autorização;
@@ -397,6 +442,7 @@ Estrutura básica de planos, limites e alertas.
 ## TASK-035 — MVP Release Candidate
 
 ### Aceite
+
 Fluxo completo:
 
 WhatsApp → IA → disponibilidade → HOLD → agendamento → confirmação → humano → auditoria.

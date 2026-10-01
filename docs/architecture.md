@@ -9,37 +9,47 @@ Não iniciar com microserviços.
 ## 2. Stack
 
 ### Frontend
+
 - Next.js
 - React
 - TypeScript
 
 ### Backend
+
 - NestJS
 - TypeScript
 
 ### Banco
+
 - PostgreSQL
 
 ### ORM
+
 - Prisma
 
 ### Cache / locks
+
 - Redis
 
 ### Jobs
+
 - BullMQ
 
 ### Tempo real
+
 - WebSocket
 
 ### Storage
+
 - S3 compatível
 
 ### Monorepo
+
 - pnpm
 - Turborepo
 
 ### Infra
+
 - Docker
 
 ## 3. Estrutura
@@ -239,9 +249,11 @@ Exemplo:
 Separar:
 
 ### Application logs
+
 Diagnóstico técnico.
 
 ### Audit logs
+
 Registro de ação de usuário/sistema.
 
 Também prever:

@@ -28,18 +28,23 @@ A IA coleta dados progressivamente e apenas quando necessários.
 ## 3. Perfis
 
 ### SUPER_ADMIN
+
 Administra a plataforma.
 
 ### CLINIC_ADMIN
+
 Administra a clínica.
 
 ### AGENT
+
 Atende pacientes e opera agenda.
 
 ### DOCTOR
+
 Consulta agenda e dados permitidos.
 
 ### MANAGER
+
 Previsto para relatórios e supervisão.
 
 ## 4. Contato x paciente

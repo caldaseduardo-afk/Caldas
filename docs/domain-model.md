@@ -340,3 +340,24 @@ Nunca salvar segredo bruto quando puder usar secret manager.
 - created_at
 
 Audit logs devem ser append-only na aplicação.
+
+## Base de persistência — TASK-002
+
+A migration inicial materializa somente `Tenant` e `Unit`, sem CRUD ou regras de
+acesso. As demais entidades serão adicionadas nas tarefas correspondentes.
+
+- Tabelas `tenants` e `units`; propriedades Prisma em camelCase mapeadas para snake_case.
+- IDs e `tenant_id`: UUID nativo, IDs gerados por `gen_random_uuid()` no PostgreSQL.
+- Ambas possuem `created_at` e `updated_at` em `timestamptz(3)`; o Prisma mantém
+  `updated_at` nas alterações. SQL administrativo deve atualizar esse campo explicitamente.
+- `units.tenant_id` é obrigatório e referencia `tenants.id`, com RESTRICT em
+  exclusão/alteração da chave. Unique `(tenant_id, id)` permite consulta composta e
+  futuras FKs compostas entre recursos do mesmo tenant.
+- `Tenant.status` permanece texto obrigatório sem default; estados e transições
+  ainda não estão definidos. `ACTIVE` no seed é apenas um rótulo demonstrativo.
+- `Unit.address` é texto obrigatório nesta base; não foi criado um modelo de endereço.
+- `Tenant.timezone` é obrigatório; `Unit.timezone_override` é opcional.
+
+Essas constraints garantem integridade referencial, não autorização. Sessão,
+services/repositories com tenant obrigatório e testes de acesso entre tenants
+serão implementados na TASK-004 antes de expor operações de negócio.

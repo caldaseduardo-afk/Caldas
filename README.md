@@ -75,3 +75,92 @@ A ordem inicial deve ser:
 ## Regra para alterações
 
 Toda mudança que alterar comportamento de negócio, segurança, arquitetura ou modelo de dados deve atualizar a documentação correspondente.
+
+## Desenvolvimento local — TASK-001
+
+Requer Node.js 22 e Corepack (`corepack enable`). O `packageManager` fixa pnpm 10.
+
+```sh
+pnpm install
+pnpm dev
+```
+
+Web: http://localhost:3000. API: http://localhost:3001/health.
+O worker inicializa um contexto NestJS sem filas ou integrações. Encerre com Ctrl+C.
+
+```sh
+pnpm lint
+pnpm format:check
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+`pnpm format` aplica a formatação. Turborepo compila os pacotes compartilhados
+antes dos consumidores, inclusive ao executar `pnpm dev` pela primeira vez. Ao editar um pacote compartilhado, execute `pnpm build` novamente.
+
+### Docker local
+
+Com Docker Engine/Docker Desktop ativo:
+
+```sh
+docker compose config --quiet
+docker compose up --build -d
+docker compose logs -f
+docker compose down
+```
+
+Os containers usam modo desenvolvimento e portas vinculadas a localhost.
+Após editar arquivos, reconstrua com `docker compose up --build -d`.
+Configure o `.env` conforme a seção de banco abaixo antes de usar Compose.
+As variáveis de integrações externas permanecem sem uso.
+
+Os pacotes `domain` e `types` permanecem reservados. O pacote `database` contém
+a infraestrutura Prisma, sem operações de negócio expostas. Nenhuma rota acessa dados de pacientes ou tenants. Autorização e
+isolamento deverão ser implementados e testados no backend antes de expor essas
+operações, conforme `docs/security.md` e a sequência do backlog.
+
+## Banco local — TASK-002
+
+Requer Docker ativo. Copie `.env.example` para `.env` se esse arquivo ainda não
+existir. Defina uma senha local aleatória em `POSTGRES_PASSWORD` e use a mesma
+senha na `DATABASE_URL` (codificada para URL quando necessário). Nunca versione
+`.env`.
+
+```sh
+pnpm install
+pnpm db:generate
+pnpm db:validate
+docker compose up -d --wait postgres
+pnpm db:migrate
+pnpm db:seed
+```
+
+A URL usada pelos comandos no host aponta para `localhost:5432`; em containers,
+o hostname é `postgres`. API e worker ainda não consomem banco. Se mudar
+`POSTGRES_PORT`, ajuste também `DATABASE_URL`. Alterar senha no `.env` não altera
+a senha de um volume PostgreSQL já inicializado.
+
+`db:migrate` aplica apenas migrations versionadas. Para criar uma migration em
+desenvolvimento, use `pnpm db:migrate:dev --name nome_da_mudanca --create-only`,
+revise o SQL e depois aplique `pnpm db:migrate`. Não use `db push` como substituto
+de migrations. Não execute reset no banco de desenvolvimento compartilhado.
+
+O seed exige `NODE_ENV=development`, cria apenas clínica/unidade fictícias e pode
+ser repetido sem duplicar ou sobrescrever registros existentes. Não cria usuários
+ou pacientes. Geração e build não acessam o banco; migrate e seed são explícitos.
+O client Prisma é infraestrutura de backend, nunca uma interface para IA/frontend.
+
+```sh
+pnpm test       # testes sem banco
+pnpm db:test    # PostgreSQL descartável: migrations do zero e testes reais
+```
+
+`db:test` cria um container exclusivo com senha aleatória e porta disponível,
+aplica a migration duas vezes, executa o seed duas vezes e verifica constraints,
+UUIDs, timestamps e consultas compostas por tenant. Ao finalizar, remove esse
+container; não altera o volume de desenvolvimento. Requer acesso à imagem
+`postgres:17-bookworm` na primeira execução.
+
+O volume `postgres_data` preserva dados após `docker compose down`. Não use
+`docker compose down -v` se precisar preservar o banco.
