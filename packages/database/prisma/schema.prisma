@@ -21,6 +21,8 @@ model Tenant {
   authEvents      AuthEvent[]
   contacts        Contact[]
   contactChannels ContactChannel[]
+  patients        Patient[]
+  patientLinks    ContactPatient[]
 
   @@map("tenants")
 }
@@ -63,6 +65,11 @@ enum AuthEventType {
   CONTACT_UPDATED
   CONTACT_CHANNEL_CREATED
   CONTACT_CHANNEL_UPDATED
+  PATIENT_CREATED
+  PATIENT_UPDATED
+  CONTACT_PATIENT_CREATED
+  CONTACT_PATIENT_UPDATED
+  CONTACT_PATIENT_REVOKED
 }
 
 model User {
@@ -123,16 +130,18 @@ model AuthThrottle {
 }
 
 model UserTenant {
-  userId         String        @map("user_id") @db.Uuid
-  tenantId       String        @map("tenant_id") @db.Uuid
-  role           String
-  roleDefinition Role          @relation(fields: [role], references: [name], onDelete: Restrict, onUpdate: Restrict)
-  active         Boolean       @default(true)
-  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  sessions       AuthSession[]
+  userId                 String           @map("user_id") @db.Uuid
+  tenantId               String           @map("tenant_id") @db.Uuid
+  role                   String
+  roleDefinition         Role             @relation(fields: [role], references: [name], onDelete: Restrict, onUpdate: Restrict)
+  active                 Boolean          @default(true)
+  createdAt              DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user                   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant                 Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  sessions               AuthSession[]
+  authorizedPatientLinks ContactPatient[] @relation("patient_link_authorizer")
+  revokedPatientLinks    ContactPatient[] @relation("patient_link_revoker")
 
   @@id([userId, tenantId])
   @@index([tenantId])
@@ -176,14 +185,15 @@ enum ContactChannelType {
 }
 
 model Contact {
-  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId    String           @map("tenant_id") @db.Uuid
-  displayName String           @map("display_name")
-  status      ContactStatus    @default(ACTIVE)
-  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  channels    ContactChannel[]
+  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String           @map("tenant_id") @db.Uuid
+  displayName  String           @map("display_name")
+  status       ContactStatus    @default(ACTIVE)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  channels     ContactChannel[]
+  patientLinks ContactPatient[]
 
   @@unique([tenantId, id])
   @@map("contacts")
@@ -208,4 +218,75 @@ model ContactChannel {
   @@index([tenantId, address])
   @@index([tenantId, contactId])
   @@map("contact_channels")
+}
+
+enum RelationshipType {
+  SELF
+  MOTHER
+  FATHER
+  SON_DAUGHTER
+  SPOUSE
+  LEGAL_GUARDIAN
+  CAREGIVER
+  SECRETARY
+  OTHER
+}
+
+enum RelationshipStatus {
+  DECLARED
+  VERIFIED
+  REVOKED
+}
+
+enum PatientAuthorizationLevel {
+  FULL
+  SCHEDULING_ONLY
+  NO_ACCESS
+}
+
+model Patient {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String           @map("tenant_id") @db.Uuid
+  name              String
+  birthDate         DateTime         @map("birth_date") @db.Date
+  document          String?
+  healthPlan        String?          @map("health_plan")
+  paymentPreference String?          @map("payment_preference")
+  notes             String?
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant            Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  contacts          ContactPatient[]
+
+  @@unique([tenantId, id])
+  @@map("patients")
+}
+
+model ContactPatient {
+  id                  String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId            String                    @map("tenant_id") @db.Uuid
+  contactId           String                    @map("contact_id") @db.Uuid
+  patientId           String                    @map("patient_id") @db.Uuid
+  relationshipType    RelationshipType          @map("relationship_type")
+  relationshipStatus  RelationshipStatus        @default(DECLARED) @map("relationship_status")
+  authorizationLevel  PatientAuthorizationLevel @default(NO_ACCESS) @map("authorization_level")
+  isPrimaryContact    Boolean                   @default(false) @map("is_primary_contact")
+  legalRepresentative Boolean                   @default(false) @map("legal_representative")
+  active              Boolean                   @default(true)
+  authorizedAt        DateTime?                 @map("authorized_at") @db.Timestamptz(3)
+  authorizedBy        String?                   @map("authorized_by") @db.Uuid
+  revokedAt           DateTime?                 @map("revoked_at") @db.Timestamptz(3)
+  revokedBy           String?                   @map("revoked_by") @db.Uuid
+  createdAt           DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant              Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  contact             Contact                   @relation(fields: [tenantId, contactId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  patient             Patient                   @relation(fields: [tenantId, patientId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  authorizer          UserTenant?               @relation("patient_link_authorizer", fields: [authorizedBy, tenantId], references: [userId, tenantId], onDelete: Restrict, onUpdate: Restrict)
+  revoker             UserTenant?               @relation("patient_link_revoker", fields: [revokedBy, tenantId], references: [userId, tenantId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, contactId, patientId])
+  @@index([tenantId, patientId, active])
+  @@index([tenantId, contactId, active])
+  @@map("contact_patients")
 }

@@ -51,7 +51,18 @@ try {
   for (let attempt = 0; attempt < 45; attempt++) {
     const result = spawnSync(
       'docker',
-      ['exec', name, 'pg_isready', '-U', 'postgres', '-d', 'task002_test'],
+      // O servidor temporário do entrypoint só atende socket Unix; aguardar TCP real.
+      [
+        'exec',
+        name,
+        'pg_isready',
+        '-h',
+        '127.0.0.1',
+        '-U',
+        'postgres',
+        '-d',
+        'task002_test',
+      ],
       { stdio: 'ignore', timeout: 5000 },
     );
     if (result.status === 0) {

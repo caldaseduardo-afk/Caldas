@@ -81,4 +81,70 @@ Nenhuma exclusão de volumes ou regressão de isolamento/autorização.
 
 ## Resultado
 
-Em implementação.
+Implementado somente Contact/ContactChannel e operações documentadas. Nenhuma
+entidade ou regra da TASK-008 foi adicionada. Prefixo nacional brasileiro explícito;
+normalização compartilhada em DTOs, repository e filtro. Novas permissões do
+catálogo mantêm contatos independentes de pacientes.
+
+### Arquivos criados
+
+- apps/api/src/contacts/phone.ts;
+- apps/api/src/contacts/contact.dto.ts;
+- apps/api/src/contacts/contact-access.ts;
+- apps/api/src/contacts/contact.repository.ts;
+- apps/api/src/contacts/contact-channel.repository.ts;
+- apps/api/src/contacts/contacts.service.ts;
+- apps/api/src/contacts/contact-channels.service.ts;
+- apps/api/src/contacts/contacts.controller.ts;
+- apps/api/src/contacts/contact-channels.controller.ts;
+- apps/api/src/contacts/contacts.module.ts;
+- apps/api/test/contacts.test.ts;
+- apps/api/integration/contacts.test.ts;
+- packages/database/prisma/migrations/20261001050000_contacts_channels/migration.sql;
+- este plano.
+
+### Arquivos alterados nesta tarefa
+
+- apps/api/src/app.module.ts;
+- packages/database/prisma/schema.prisma;
+- packages/database/src/rbac-catalog.ts;
+- packages/database/test/integration.test.ts;
+- apps/api/integration/permissions.test.ts;
+- scripts/test-database.mjs;
+- README.md;
+- docs/domain-model.md, docs/tenancy.md e docs/security.md.
+
+O runner de banco agora usa pg_isready via TCP: o servidor temporário de bootstrap
+no entrypoint oficial só atende socket Unix, podendo dar falso positivo anterior.
+Essa correção foi motivada por uma falha de conexão na validação desta tarefa.
+Corrigidos também escapes de regex para lint e tipagem explícita das fixtures.
+
+### Validações e limites
+
+Lint, typecheck, testes unitários e build aprovados. Integração com PostgreSQL
+aprovada: nove cenários novos e regressão completa (37 cenários em cinco suítes,
+42 registros TAP contando suítes), mais dois testes de banco. Cobertura inclui os
+cinco cenários exigidos, duplicidade concorrente, FK/índice parcial/CHECK, dados
+externos, DTOs, RBAC, revogação e rollback de principal quando auditoria falha.
+Runner corrigido validado novamente com sucesso. Migration revisada e aplicada no
+banco local sem reset; pnpm db:seed:rbac, pnpm db:validate e migrate diff aprovados
+(sem divergência). pnpm format:check, git diff --check e instalação com
+--frozen-lockfile aprovados. Smoke local da API compilada: /health 200, /contacts
+401 sem sessão, /patients 404. Instância temporária encerrada após verificação.
+Nenhuma imagem Docker de aplicação foi atualizada nesta tarefa.
+
+Comandos concluídos: pnpm lint, pnpm typecheck, pnpm test (13 testes da API),
+pnpm db:test, pnpm build, pnpm db:migrate, pnpm db:seed:rbac, pnpm db:validate,
+pnpm --filter @atendente/database exec prisma migrate diff --from-config-datasource
+--to-schema prisma/schema.prisma --exit-code, pnpm format:check,
+pnpm install --frozen-lockfile e git diff --check. TASK-008 não iniciada.
+
+Limites documentados: normalização não prova posse/existência do telefone;
+internacionais têm validação sintática; prefixo padrão BR; ID externo tem namespace
+por tipo; sem provider real, remoção de canais ou fusão de pessoas. O índice parcial
+garante no máximo um principal; a aplicação garante existência de principal nas
+operações disponíveis. SQL administrativo não deve contornar essas regras.
+
+Índice parcial de principal e CHECK canônico estão no SQL da migration (não no
+DSL Prisma); preservar essas constraints em futuras migrations. Os testes de
+banco exercitam sua existência e comportamento.

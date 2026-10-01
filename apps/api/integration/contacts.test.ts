@@ -52,7 +52,7 @@ test('contatos/canais: normalização, duplicidade, principal e isolamento real'
     });
     const password = 'senha longa contato teste';
     const passwordHash = await hashPassword(password);
-    const users = [];
+    const users: { id: string; email: string; name: string }[] = [];
     for (const [tenantId, role] of [
       [tenantA.id, 'AGENT'],
       [tenantB.id, 'CLINIC_ADMIN'],

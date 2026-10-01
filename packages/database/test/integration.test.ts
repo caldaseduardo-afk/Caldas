@@ -125,14 +125,14 @@ test('catálogo RBAC: seed idempotente, associações e integridade referencial'
     await seedRbac(client);
     await seedRbac(client);
     assert.deepEqual(await snapshot(), before);
-    assert.equal(before.permissions.length, 21);
+    assert.equal(before.permissions.length, 22);
     assert.deepEqual(
       before.roles.filter((r) => r.enabled).map((r) => r.name),
       ['AGENT', 'CLINIC_ADMIN', 'DOCTOR'],
     );
     assert.equal(
       before.associations.filter((r) => r.roleName === 'CLINIC_ADMIN').length,
-      21,
+      22,
     );
     assert.equal(
       before.associations.filter((r) => r.roleName === 'AGENT').length,

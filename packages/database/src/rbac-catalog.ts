@@ -11,6 +11,7 @@ export const PERMISSIONS = [
   'conversation.close',
   'patient.view',
   'patient.edit',
+  'patient.authorize',
   'appointment.view',
   'appointment.create',
   'appointment.reschedule',
