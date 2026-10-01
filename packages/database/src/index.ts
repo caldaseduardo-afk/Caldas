@@ -6,7 +6,13 @@ export function createDatabaseClient(connectionString: string) {
   if (!connectionString.trim()) {
     throw new Error('DATABASE_URL deve ser configurada.');
   }
-  const url = new URL(connectionString);
+  let url: URL;
+  try {
+    url = new URL(connectionString);
+  } catch {
+    // TypeError de URL inclui o input original; não propagar credenciais.
+    throw new Error('DATABASE_URL inválida.');
+  }
   if (!['postgresql:', 'postgres:'].includes(url.protocol)) {
     throw new Error('DATABASE_URL deve apontar para PostgreSQL.');
   }

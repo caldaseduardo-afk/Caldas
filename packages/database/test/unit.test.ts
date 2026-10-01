@@ -15,3 +15,15 @@ test('conexão exige URL PostgreSQL explícita', () => {
     assert.throws(() => createDatabaseClient(url));
   }
 });
+
+test('URL inválida não expõe credenciais no erro', () => {
+  assert.throws(
+    () => createDatabaseClient('postgresql://user:segredo@'),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.equal(error.message, 'DATABASE_URL inválida.');
+      assert.equal('input' in error, false);
+      return true;
+    },
+  );
+});
