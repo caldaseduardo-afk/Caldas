@@ -239,3 +239,33 @@ tenant, ID conflitante ou detalhe SQL. Qualquer falha, inclusive de auditoria,
 desfaz toda a operação. Um 409 concorrente exige recarregar e tentar novamente.
 A auditoria persiste somente IDs/ação/campos alterados; não replica dados pessoais.
 Erros de validação não ecoam o telefone fornecido.
+
+## Pacientes e representantes — TASK-008
+
+patient.view/patient.edit controlam o painel administrativo por usuário autenticado
+no tenant. Gerenciar vínculos exige também contact.view. patient.authorize,
+exclusiva de CLINIC_ADMIN nesta etapa, permite verificar vínculo, conceder FULL ou
+SCHEDULING_ONLY e afirmar representante legal. AGENT pode declarar NO_ACCESS,
+restringir e revogar. SELF ou uma declaração de parentesco nunca autoriza por si.
+Verificação é uma decisão explícita de funcionário autorizado; não há autenticação
+de contato externo nem verificação documental automatizada nesta entrega.
+
+PatientAccessService.forContact aplica conjuntamente tenant, sessão/RBAC, vínculo
+ativo VERIFIED/FULL e Contact ACTIVE na consulta que lê o Patient. NO_ACCESS,
+SCHEDULING_ONLY, DECLARED, REVOKED e ausência de vínculo não liberam a leitura.
+O retorno contextual contém somente id/name/birthDate; não inclui documento,
+convênio, pagamento, notas, tenant ou autores internos. A lista administrativa usa
+o mesmo resumo; o detalhe administrativo contém os campos editáveis de Patient.
+
+GET /patients é acesso administrativo de funcionário autorizado, não autenticação
+de representante. Integrações futuras deverão autenticar o canal/contato e chamar
+a política contextual a cada operação; não podem usar a rota administrativa como
+atalho. Conhecer patient_id/contact_id não substitui identidade, tenant, RBAC e
+vínculo. IDs externos/inexistentes e vínculo insuficiente retornam o mesmo 404;
+sem permissão de usuário, 403; sem sessão, 401.
+
+DTOs rejeitam tenant/atores/datas técnicas e campos extras; autoria é sempre do
+servidor. Services e repositories validam permissões; queries repetem filtros de
+autorização. Transações Serializable e lock de escrita do Patient serializam
+mudanças dos vínculos/principal. Conflitos retornam 409 genérico; auditoria falhou,
+operação é desfeita. Revogar mantém histórico e bloqueia a próxima consulta.

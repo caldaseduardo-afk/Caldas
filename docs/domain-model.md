@@ -445,5 +445,43 @@ o backend não infere que são a mesma pessoa. Inativação não libera canais �
 
 AuthEvent recebe CONTACT_CREATED/UPDATED e CONTACT_CHANNEL_CREATED/UPDATED. O
 registro contém ator, tenant, recurso e campos alterados, sem duplicar nome,
-telefone ou identificador externo na auditoria. Nenhum modelo Patient ou
-ContactPatient foi implementado.
+telefone ou identificador externo na auditoria. Pacientes e representantes são
+implementados separadamente na TASK-008, descrita abaixo.
+
+## Pacientes e representantes — TASK-008
+
+Patient e Contact são entidades distintas. O Patient tem nome e nascimento
+obrigatórios; nascimento usa DATE (YYYY-MM-DD válido, não futuro), sem hora.
+Documento, convênio, preferência de pagamento e notas são opcionais. Não existe
+unicidade global de documento nem inferência de identidade por nome/telefone.
+ContactPatient representa N:N; SELF vincula o contato ao seu próprio Patient sem
+criar outro Contact. Todas as relações e autores pertencem ao mesmo tenant.
+
+RelationshipType: SELF, MOTHER, FATHER, SON_DAUGHTER, SPOUSE, LEGAL_GUARDIAN,
+CAREGIVER, SECRETARY, OTHER. RelationshipStatus: DECLARED, VERIFIED, REVOKED.
+PatientAuthorizationLevel: FULL, SCHEDULING_ONLY, NO_ACCESS. Estado e nível são
+independentes; DECLARED/SCHEDULING_ONLY é válido, sem liberar leitura protegida.
+Defaults: DECLARED/NO_ACCESS, active=true, principal/legal=false. Nenhum tipo de
+parentesco, indicação de principal ou representante legal concede acesso sozinho.
+
+Um vínculo é único por (tenant_id,contact_id,patient_id), inclusive após revogação.
+Revogação é terminal nesta etapa e preserva a linha, autor e horário. Não há DELETE
+nem reativação; nova autorização após revogação depende de política futura explícita.
+Mudar relationship_type volta a DECLARED/NO_ACCESS/legal=false, salvo decisões
+explícitas autorizadas na mesma requisição. authorized_by/at registram o último
+ator da decisão de política, não uma prova automática de consentimento. A auditoria
+preserva as decisões anteriores. revoked_by/at são definidos no servidor.
+
+FKs compostas ligam ContactPatient a Contact e Patient e seus autores a UserTenant.
+Índices (tenant_id,patient_id,active) e (tenant_id,contact_id,active) suportam consulta.
+Patient tem unique (tenant_id,id). Índice parcial unique (tenant_id,patient_id)
+WHERE active AND is_primary_contact limita o principal a um. Principal é opcional;
+promover outro troca ambos atomicamente; revogar o principal deixa nenhum.
+CHECKs exigem autoria/data em pares, decisão registrada para concessões e revogação
+coerente (REVOKED, inactive, NO_ACCESS, não principal, autor/data obrigatórios).
+
+AuthEvent adiciona PATIENT_CREATED/UPDATED e CONTACT_PATIENT_CREATED/UPDATED/REVOKED.
+Operações e auditoria são atômicas, com ator/tenant/recurso. Pacientes registram só
+nomes dos campos alterados; vínculos registram política antes/depois e IDs, sem
+replicar dados pessoais/clínicos. Serviços de acesso contextual preparam a validação
+de active_patient_id futuro; não existe Conversation nem seleção persistida nesta tarefa.

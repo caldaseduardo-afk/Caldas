@@ -10,6 +10,8 @@ datasource db {
 }
 
 model Tenant {
+  specialties     Specialty[]
+  services        Service[]
   id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name            String
   status          String
@@ -48,6 +50,10 @@ enum UserStatus {
 }
 
 enum AuthEventType {
+  SPECIALTY_CREATED
+  SPECIALTY_UPDATED
+  SERVICE_CREATED
+  SERVICE_UPDATED
   USER_CREATED
   LOGIN_SUCCEEDED
   LOGIN_FAILED
@@ -289,4 +295,43 @@ model ContactPatient {
   @@index([tenantId, patientId, active])
   @@index([tenantId, contactId, active])
   @@map("contact_patients")
+}
+
+model Specialty {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  name        String    @db.VarChar(200)
+  description String?   @db.VarChar(2000)
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  services    Service[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, name])
+  @@index([tenantId, active])
+  @@map("specialties")
+}
+
+model Service {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId            String    @map("tenant_id") @db.Uuid
+  specialtyId         String    @map("specialty_id") @db.Uuid
+  name                String    @db.VarChar(200)
+  description         String?   @db.VarChar(2000)
+  durationMinutes     Int       @map("duration_minutes")
+  bufferBeforeMinutes Int       @default(0) @map("buffer_before_minutes")
+  bufferAfterMinutes  Int       @default(0) @map("buffer_after_minutes")
+  price               Decimal?  @db.Decimal(12, 2)
+  active              Boolean   @default(true)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  specialty           Specialty @relation(fields: [tenantId, specialtyId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, specialtyId, name])
+  @@index([tenantId, active])
+  @@index([tenantId, specialtyId, active])
+  @@map("services")
 }

@@ -22,8 +22,8 @@ Sem Conversation, Appointment, agenda, profissionais, serviços, IA ou TASK-009.
   conceder FULL/SCHEDULING_ONLY ou afirmar representante legal. Sem autorização
   automática por SELF/MOTHER/etc. AGENT pode declarar NO_ACCESS e revogar/restringir.
 - DECLARED + SCHEDULING_ONLY é válido quando explicitamente autorizado; até VERIFIED
-  + FULL não há leitura protegida pelo contato. DECLARED + FULL também não basta:
-  conceitos independentes, ambos verificados pela política de leitura.
+  - FULL não há leitura protegida pelo contato. DECLARED + FULL também não basta:
+    conceitos independentes, ambos verificados pela política de leitura.
 - Consultas /patients são administrativas por usuário do sistema autorizado,
   nunca porta de entrada de um contato externo. Leitura contextual
   /contacts/:contactId/patients/:patientId exige patient.view + contact.view,
@@ -86,4 +86,61 @@ retornar a uma versão que ignore autorização mantendo rotas expostas.
 
 ## Resultado
 
-Em implementação.
+Concluída, sem avançar TASK-009.
+
+### Arquivos da entrega
+
+Módulo criado/concluído em apps/api/src/patients:
+
+- patient.dto.ts e relationship.dto.ts: entradas por whitelist e validações;
+- patient-access.ts: transações autorizadas, filtros e projeções;
+- patient.repository.ts, patients.service.ts e patients.controller.ts: pacientes;
+- relationship.repository.ts, relationships.service.ts e relationships.controller.ts: vínculos;
+- patient-contact-access.repository.ts, patient-access.service.ts e patient-contact-access.controller.ts: política contextual;
+- patients.module.ts: composição e exportação do serviço de acesso.
+
+Novos testes: apps/api/test/patients.test.ts e apps/api/integration/patients.test.ts.
+Migration: packages/database/prisma/migrations/20261001060000_patients_representatives/migration.sql.
+Plano: este arquivo, criado antes da implementação.
+
+Arquivos alterados na tarefa: packages/database/prisma/schema.prisma,
+packages/database/src/rbac-catalog.ts, packages/database/test/integration.test.ts,
+apps/api/src/app.module.ts, apps/api/test/bootstrap.test.ts, README.md,
+docs/domain-model.md, docs/security.md e docs/tenancy.md. Os arquivos parciais do
+módulo patients existentes na retomada foram completados, preservando tarefas anteriores.
+
+### Validação executada
+
+- pnpm db:generate e pnpm --filter @atendente/database build: client gerado.
+- pnpm --filter @atendente/database exec prisma format: schema formatado.
+- prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script:
+  migration gerada, revisada e acrescida de CHECKs/índice parcial antes da aplicação.
+- pnpm lint: aprovado.
+- pnpm typecheck: aprovado após corrigir fixtures de Tenant com status/timezone obrigatórios.
+- pnpm test: 20 testes aprovados (API 15, database 3, web 1, worker 1).
+- pnpm db:test: 2 testes de banco e 53 de integração da API aprovados, sem skips;
+  migrations do zero/reaplicação e seed repetido aprovados em PostgreSQL 17 descartável.
+  Inclui os 14 cenários solicitados distribuídos em 10 subtestes de pacientes,
+  além de regressões de autenticação, tenancy, RBAC, clínicas/unidades e contatos.
+- pnpm db:validate: aprovado.
+- pnpm build: 7 tarefas aprovadas no monorepo.
+- pnpm format:check e git diff --check: aprovados.
+- pnpm db:migrate: migration TASK-008 aplicada ao banco local atendente_ia.
+- pnpm db:seed:rbac: política aplicada; vínculos de usuários não alterados.
+- pnpm --filter @atendente/database exec prisma migrate status: 7 migrations, sem pendências.
+- pnpm --filter @atendente/database exec prisma migrate diff --from-config-datasource
+  --to-schema prisma/schema.prisma --exit-code: sem divergências no schema gerenciado
+  pelo Prisma; CHECKs e índice parcial validados também pelos testes de banco.
+- Smoke nativo com node --env-file=.env e apps/api/dist/bootstrap.js em porta efêmera:
+  /health=200, /patients=401 e /contacts/:id/patient-links=401 sem sessão; processo encerrado.
+
+### Limitações e pendências de escopo
+
+Sem falhas de validação pendentes. Revogação é terminal; renovação de consentimento
+não foi inventada. VERIFIED é decisão explícita de funcionário com patient.authorize,
+não comprovação automática de identidade/documentação. SCHEDULING_ONLY é persistido,
+mas nenhuma operação de agenda foi implementada. active_patient_id ainda não é
+persistido, pois depende de Conversation futura; serviço contextual está preparado.
+Não há frontend novo, integração externa, IA ou autorização clínica complexa.
+Imagens Docker de aplicação não foram reconstruídas; executar código atualizado
+com pnpm dev/build/start ou reconstruir as imagens quando necessário.

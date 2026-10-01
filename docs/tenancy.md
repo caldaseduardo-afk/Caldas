@@ -240,3 +240,27 @@ Conhecer ID de canal não permite usá-lo sob outro contato nem tenant.
 GET /contacts admite somente phone opcional, normalizado pela mesma função de
 cadastro/PATCH; resultados são contatos distintos com seus canais. Sem phone,
 lista o diretório do tenant, inclusive inativos. Não há busca global.
+
+## Pacientes e representantes — TASK-008
+
+O catálogo atual tem 22 permissões: CLINIC_ADMIN 22, AGENT 15, DOCTOR 4.
+Nova patient.authorize pertence somente a CLINIC_ADMIN; aplicar o seed RBAC explícito
+após migration. Nenhum privilégio novo para SUPER_ADMIN/MANAGER reservados.
+
+| Endpoint                                           | Permissões                                     |
+| -------------------------------------------------- | ---------------------------------------------- |
+| GET /patients e GET /patients/:id                  | patient.view                                   |
+| POST /patients e PATCH /patients/:id               | patient.edit                                   |
+| GET /patients/:patientId/relationships             | patient.view + contact.view                    |
+| POST /patients/:patientId/relationships            | patient.edit + contact.view                    |
+| PATCH /patients/:patientId/relationships/:id       | patient.edit + contact.view                    |
+| POST /patients/:patientId/relationships/:id/revoke | patient.edit + contact.view                    |
+| GET /contacts/:contactId/patient-links             | patient.view + contact.view                    |
+| GET /contacts/:contactId/patients/:patientId       | patient.view + contact.view + vínculo elegível |
+
+POST/PATCH de vínculos exigem adicionalmente patient.authorize ao receber VERIFIED,
+FULL, SCHEDULING_ONLY ou legalRepresentative=true. A regra é aplicada novamente no
+service/repository, não apenas no guard. Todas as operações usam o tenant ativo,
+sem aceitar tenant arbitrário no corpo/header. FKs compostas impedem Patient,
+Contact e autores de outros tenants. Detalhes de projeção/autorização contextual
+estão em security.md; revogação e principal em domain-model.md.

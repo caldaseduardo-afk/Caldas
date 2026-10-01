@@ -297,4 +297,28 @@ Não há consulta de operadora ou verificação de posse. Sem dependência exter
 Duplicidade de (tenant,tipo,telefone) ou (tenant,tipo,ID externo não nulo) retorna 409. Mesmo telefone pode existir em tenants distintos. PHONE e WHATSAPP são canais
 diferentes; busca não funde pessoas. providerExternalId é opcional e seu namespace
 inicial é o tipo de canal; provedores múltiplos serão tratados na tarefa específica.
-Não há pacientes, representantes, agenda, envio de mensagens ou integração real.
+A TASK-007 não implementa pacientes/representantes; veja TASK-008 abaixo.
+Agenda, envio de mensagens e integração real continuam fora desta entrega.
+
+### Pacientes e representantes (TASK-008)
+
+Execute `pnpm db:migrate` e `pnpm db:seed:rbac`. Com sessão e tenant selecionado,
+POST /patients recebe `{"name":"Lucas","birthDate":"2010-05-20"}`. GET /patients
+lista resumos; GET/PATCH /patients/:id consulta/atualiza. O detalhe aceita ainda
+document, healthPlan, paymentPreference e notes (opcionais e removíveis com null).
+
+POST /patients/:patientId/relationships recebe
+`{"contactId":"UUID-do-contato","relationshipType":"MOTHER"}` e inicia
+DECLARED/NO_ACCESS. Use SELF quando o contato também for o paciente, mantendo o
+mesmo Contact. GET nesse caminho lista vínculos, inclusive revogados. PATCH
+/:id altera política/principal; `isPrimaryContact:true` troca o principal na mesma
+transação. POST /:id/revoke revoga e preserva histórico. Revogação é terminal
+nesta entrega. GET /contacts/:contactId/patient-links lista os vínculos do contato.
+
+Somente CLINIC_ADMIN possui patient.authorize para verificar, conceder níveis de
+acesso ou afirmar representante legal. AGENT pode declarar NO_ACCESS e revogar.
+GET /contacts/:contactId/patients/:patientId só retorna id/name/birthDate com
+vínculo ativo VERIFIED/FULL e contato ativo, além de patient.view/contact.view.
+DECLARED/SCHEDULING_ONLY é válido, mas não libera essa consulta. Não há operação
+de agenda nem autenticação pública de contato. PatientAccessService prepara o
+futuro active_patient_id sem criar Conversation. Veja o plano TASK-008 e docs/security.md.

@@ -59,7 +59,7 @@ test('guard global protege rotas sem opt-in; health permanece público', async (
     for (const route of ['/private-probe', '/auth/me']) {
       assert.equal((await fetch(`${url}${route}`)).status, 401);
     }
-    assert.equal((await fetch(`${url}/patients`)).status, 404);
+    assert.equal((await fetch(`${url}/patients`)).status, 401);
     const headers = { Cookie: `atendente_session=${'a'.repeat(43)}` };
     assert.equal((await fetch(`${url}/auth/me`, { headers })).status, 200);
     assert.equal(
