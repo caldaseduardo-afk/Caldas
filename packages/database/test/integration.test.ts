@@ -104,3 +104,61 @@ test('migration inicial, seed e constraints de tenant no PostgreSQL', async () =
     await client.$disconnect();
   }
 });
+
+test('catálogo RBAC: seed idempotente, associações e integridade referencial', async () => {
+  const { seedRbac } = await import('../src/rbac-seed');
+  const client = createDatabaseClient(connectionString);
+  try {
+    const snapshot = async () => ({
+      roles: await client.role.findMany({ orderBy: { name: 'asc' } }),
+      permissions: await client.permission.findMany({
+        orderBy: { name: 'asc' },
+      }),
+      associations: await client.rolePermission.findMany({
+        orderBy: [{ roleName: 'asc' }, { permissionName: 'asc' }],
+      }),
+      memberships: await client.userTenant.findMany({
+        orderBy: [{ userId: 'asc' }, { tenantId: 'asc' }],
+      }),
+    });
+    const before = await snapshot();
+    await seedRbac(client);
+    await seedRbac(client);
+    assert.deepEqual(await snapshot(), before);
+    assert.equal(before.permissions.length, 21);
+    assert.deepEqual(
+      before.roles.filter((r) => r.enabled).map((r) => r.name),
+      ['AGENT', 'CLINIC_ADMIN', 'DOCTOR'],
+    );
+    assert.equal(
+      before.associations.filter((r) => r.roleName === 'CLINIC_ADMIN').length,
+      21,
+    );
+    assert.equal(
+      before.associations.filter((r) => r.roleName === 'AGENT').length,
+      15,
+    );
+    assert.equal(
+      before.associations.filter((r) => r.roleName === 'DOCTOR').length,
+      4,
+    );
+    assert.equal(
+      before.associations.filter((r) =>
+        ['SUPER_ADMIN', 'MANAGER'].includes(r.roleName),
+      ).length,
+      0,
+    );
+    await assert.rejects(
+      client.rolePermission.create({
+        data: { roleName: 'CLINIC_ADMIN', permissionName: 'inventada' },
+      }),
+    );
+    await assert.rejects(
+      client.rolePermission.create({
+        data: { roleName: 'inventado', permissionName: 'user.manage' },
+      }),
+    );
+  } finally {
+    await client.$disconnect();
+  }
+});

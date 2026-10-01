@@ -21,3 +21,12 @@ export function createDatabaseClient(connectionString: string) {
     log: [],
   });
 }
+
+export type { Prisma } from './generated/prisma/client';
+
+export {
+  PERMISSIONS,
+  ROLES,
+  OPERATIONAL_ROLES,
+  type PermissionName,
+} from './rbac-catalog';

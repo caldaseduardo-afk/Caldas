@@ -3,18 +3,28 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "tsc-watch -p tsconfig.build.json --onSuccess \"node dist/main.js\"",
+    "dev": "tsc-watch -p tsconfig.build.json --onSuccess \"node --env-file-if-exists=../../.env dist/main.js\"",
     "build": "tsc -p tsconfig.build.json",
-    "start": "node dist/main.js",
+    "start": "node --env-file-if-exists=../../.env dist/main.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "tsc -p tsconfig.test.json && node --test .test-dist/test/*.test.js"
+    "test": "tsc -p tsconfig.test.json && node --test .test-dist/test/*.test.js",
+    "test:integration": "tsc -p tsconfig.test.json && node --test --test-concurrency=1 .test-dist/integration/*.test.js",
+    "auth:create-user": "pnpm build && node --env-file-if-exists=../../.env dist/auth/create-user.js",
+    "tenancy:grant": "pnpm build && node --env-file-if-exists=../../.env dist/tenancy/grant-membership.js",
+    "clinics:create": "pnpm build && node --env-file-if-exists=../../.env dist/clinics/create-clinic.js"
   },
   "dependencies": {
+    "@atendente/database": "workspace:*",
     "@nestjs/common": "^11.1.0",
     "@nestjs/core": "^11.1.0",
+    "@nestjs/platform-express": "^11.1.0",
+    "cookie": "^1.1.1",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2",
-    "@nestjs/platform-express": "^11.1.0"
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@nestjs/testing": "^11.2.7",
+    "@types/express": "^5.0.6"
   }
 }

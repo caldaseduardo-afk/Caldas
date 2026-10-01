@@ -3,5 +3,6 @@
   "compilerOptions": {
     "rootDir": ".",
     "outDir": ".test-dist"
-  }
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts", "integration/**/*.ts"]
 }

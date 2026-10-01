@@ -18,7 +18,11 @@
     "db:migrate": "pnpm --filter @atendente/database db:migrate",
     "db:migrate:dev": "pnpm --filter @atendente/database db:migrate:dev",
     "db:seed": "pnpm --filter @atendente/database db:seed",
-    "db:test": "node scripts/test-database.mjs"
+    "db:test": "node scripts/test-database.mjs",
+    "auth:create-user": "pnpm --filter @atendente/database build && pnpm --filter @atendente/api auth:create-user",
+    "tenancy:grant": "pnpm --filter @atendente/database build && pnpm --filter @atendente/api tenancy:grant",
+    "db:seed:rbac": "pnpm --filter @atendente/database db:seed:rbac",
+    "clinics:create": "pnpm --filter @atendente/database build && pnpm --filter @atendente/api clinics:create"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

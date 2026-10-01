@@ -8,6 +8,8 @@ const environment = {
   ...process.env,
   POSTGRES_PASSWORD: password,
   NODE_ENV: 'development',
+  AUTH_SECRET: randomBytes(32).toString('hex'),
+  AUTH_ORIGIN: 'http://localhost:3000',
 };
 
 function run(command, args, capture = false) {
@@ -70,6 +72,7 @@ try {
   run('pnpm', [...scoped, 'db:seed']);
   run('pnpm', [...scoped, 'db:seed']);
   run('pnpm', [...scoped, 'test:integration']);
+  run('pnpm', ['--filter', '@atendente/api', 'test:integration']);
   console.log(
     'Migrations do zero, reaplicação, seed e testes de integração aprovados.',
   );

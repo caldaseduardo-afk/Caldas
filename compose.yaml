@@ -9,6 +9,14 @@ services:
     build: .
     init: true
     command: pnpm --filter @atendente/api dev
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://${POSTGRES_USER:-atendente}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-atendente_ia}
+      AUTH_SECRET: ${AUTH_SECRET:?Defina AUTH_SECRET no .env}
+      AUTH_ORIGIN: ${AUTH_ORIGIN:-http://localhost:3000}
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - '127.0.0.1:3001:3001'
   worker:

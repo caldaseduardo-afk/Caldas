@@ -12,7 +12,8 @@
     "db:validate": "prisma validate",
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
-    "db:seed": "pnpm build && prisma db seed"
+    "db:seed": "pnpm build && prisma db seed",
+    "db:seed:rbac": "pnpm build && node --env-file-if-exists=../../.env dist/seed-rbac.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

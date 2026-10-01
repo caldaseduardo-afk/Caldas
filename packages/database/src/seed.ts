@@ -1,3 +1,4 @@
+import { seedRbac } from './rbac-seed';
 import { createDatabaseClient } from './index';
 import { assertDevelopmentSeed, seedDevelopment } from './development-seed';
 
@@ -5,6 +6,7 @@ async function main() {
   assertDevelopmentSeed(process.env.NODE_ENV);
   const client = createDatabaseClient(process.env.DATABASE_URL ?? '');
   try {
+    await seedRbac(client);
     await seedDevelopment(client, process.env.NODE_ENV);
     console.log('Seed de desenvolvimento concluído.');
   } finally {

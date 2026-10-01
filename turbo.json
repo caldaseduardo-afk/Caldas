@@ -22,10 +22,12 @@
       "outputs": ["dist/**", "src/generated/**"]
     },
     "@atendente/database#typecheck": {
-      "cache": false
+      "cache": false,
+      "dependsOn": ["build"]
     },
     "@atendente/database#test": {
-      "cache": false
+      "cache": false,
+      "dependsOn": ["build"]
     }
   },
   "globalDependencies": [

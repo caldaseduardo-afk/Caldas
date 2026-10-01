@@ -10,13 +10,17 @@ datasource db {
 }
 
 model Tenant {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name      String
-  status    String
-  timezone  String
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  units     Unit[]
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String
+  status          String
+  timezone        String
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  units           Unit[]
+  memberships     UserTenant[]
+  authEvents      AuthEvent[]
+  contacts        Contact[]
+  contactChannels ContactChannel[]
 
   @@map("tenants")
 }
@@ -34,4 +38,174 @@ model Unit {
 
   @@unique([tenantId, id])
   @@map("units")
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum AuthEventType {
+  USER_CREATED
+  LOGIN_SUCCEEDED
+  LOGIN_FAILED
+  LOGIN_THROTTLED
+  LOGOUT
+  TENANT_SELECTED
+  TENANT_MEMBERSHIP_GRANTED
+  TENANT_CREATED
+  TENANT_UPDATED
+  TENANT_DEACTIVATED
+  UNIT_CREATED
+  UNIT_UPDATED
+  UNIT_DEACTIVATED
+  CONTACT_CREATED
+  CONTACT_UPDATED
+  CONTACT_CHANNEL_CREATED
+  CONTACT_CHANNEL_UPDATED
+}
+
+model User {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String        @unique
+  name         String
+  passwordHash String        @map("password_hash")
+  mfaEnabled   Boolean       @default(false) @map("mfa_enabled")
+  mfaRequired  Boolean       @default(false) @map("mfa_required")
+  status       UserStatus    @default(ACTIVE)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sessions     AuthSession[]
+  events       AuthEvent[]
+  memberships  UserTenant[]
+
+  @@map("users")
+}
+
+model AuthSession {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  activeTenantId String?     @map("active_tenant_id") @db.Uuid
+  membership     UserTenant? @relation(fields: [userId, activeTenantId], references: [userId, tenantId], onDelete: Cascade, onUpdate: Cascade)
+  tokenHash      String      @unique @map("token_hash") @db.Char(64)
+  userId         String      @map("user_id") @db.Uuid
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt      DateTime    @map("expires_at") @db.Timestamptz(3)
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, activeTenantId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model AuthEvent {
+  resourceId String?       @map("resource_id") @db.Uuid
+  changes    Json?
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String?       @map("user_id") @db.Uuid
+  tenantId   String?       @map("tenant_id") @db.Uuid
+  tenant     Tenant?       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  type       AuthEventType
+  ipHash     String?       @map("ip_hash") @db.Char(64)
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  user       User?         @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@map("auth_events")
+}
+
+model AuthThrottle {
+  key       String   @id @db.Char(64)
+  attempts  Int
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+
+  @@index([expiresAt])
+  @@map("auth_throttles")
+}
+
+model UserTenant {
+  userId         String        @map("user_id") @db.Uuid
+  tenantId       String        @map("tenant_id") @db.Uuid
+  role           String
+  roleDefinition Role          @relation(fields: [role], references: [name], onDelete: Restrict, onUpdate: Restrict)
+  active         Boolean       @default(true)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  sessions       AuthSession[]
+
+  @@id([userId, tenantId])
+  @@index([tenantId])
+  @@map("user_tenants")
+}
+
+model Role {
+  name        String           @id
+  enabled     Boolean          @default(false)
+  memberships UserTenant[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  name  String           @id
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleName       String     @map("role_name")
+  permissionName String     @map("permission_name")
+  role           Role       @relation(fields: [roleName], references: [name], onDelete: Cascade, onUpdate: Restrict)
+  permission     Permission @relation(fields: [permissionName], references: [name], onDelete: Cascade, onUpdate: Restrict)
+
+  @@id([roleName, permissionName])
+  @@map("role_permissions")
+}
+
+enum ContactStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ContactChannelType {
+  PHONE
+  WHATSAPP
+}
+
+model Contact {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String           @map("tenant_id") @db.Uuid
+  displayName String           @map("display_name")
+  status      ContactStatus    @default(ACTIVE)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  channels    ContactChannel[]
+
+  @@unique([tenantId, id])
+  @@map("contacts")
+}
+
+model ContactChannel {
+  id                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId           String             @map("tenant_id") @db.Uuid
+  contactId          String             @map("contact_id") @db.Uuid
+  type               ContactChannelType
+  address            String             @db.VarChar(16)
+  providerExternalId String?            @map("provider_external_id") @db.VarChar(200)
+  primary            Boolean            @default(false)
+  verifiedAt         DateTime?          @map("verified_at") @db.Timestamptz(3)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  contact            Contact            @relation(fields: [tenantId, contactId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, type, address], map: "contact_channels_tenant_type_address_key")
+  @@unique([tenantId, type, providerExternalId], map: "contact_channels_tenant_type_external_key")
+  @@index([tenantId, address])
+  @@index([tenantId, contactId])
+  @@map("contact_channels")
 }
