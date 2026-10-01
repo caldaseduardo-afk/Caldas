@@ -47,14 +47,14 @@ Não haverá reset automático. Antes de reverter migration em ambiente com dado
 
 ## Resultado
 
-Implementação concluída; validações locais e integração aprovadas. Build Docker em verificação final.
+Implementação concluída; validações locais, integração e build Docker aprovados.
 
 - SQL gerado por `prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script` e revisado antes de aplicar: somente CREATE SCHEMA/TABLE/INDEX e FK, sem remoção de dados.
 - Prisma schema validado e client compilado. Arquivos gerados não são versionados.
 - PostgreSQL saudável, volume persistente inicializado. `.env` local criado com senha aleatória e permissão 0600, sem registrar seu conteúdo.
 - Migration aplicada no banco de desenvolvimento; seed executado duas vezes.
 - `pnpm db:test` passou: banco descartável migrado do zero; segunda aplicação sem pendências; seed duas vezes; UUID, timestamps, tenant obrigatório, FK restritiva, consultas compostas e preservação de dados editados validados. Container de teste removido ao final.
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (seis testes sem banco), `pnpm build`, `pnpm format:check` e `git diff --check`: passaram.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (sete testes sem banco), `pnpm build`, `pnpm format:check` e `git diff --check`: passaram.
 - Nenhum fluxo da TASK-003 foi implementado. Isolamento/autorização de negócio permanecem explicitamente fora desta tarefa.
 
 ## Arquivos criados
@@ -70,3 +70,12 @@ Implementação concluída; validações locais e integração aprovadas. Build 
 - packages/database/test/integration.test.ts
 - scripts/test-database.mjs
 - Este plano; `.env` apenas local, ignorado pelo Git.
+
+### Verificações finais
+
+- `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code`: sem diferenças entre banco e schema.
+- Consulta de conferência: uma clínica e uma unidade após duas execuções do seed.
+- `pnpm install --frozen-lockfile`: passou; `.env` e client gerado confirmados como ignorados pelo Git.
+- Teste adicional garante que URL inválida não propague o input com credenciais; lint, typecheck e sete testes sem banco passaram novamente.
+
+- `docker compose build api`: passou com o Dockerfile compartilhado, incluindo geração Prisma e build do monorepo sem `.env` na imagem.
