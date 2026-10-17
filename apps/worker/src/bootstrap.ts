@@ -6,6 +6,6 @@ export async function createApplication() {
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: false,
   });
-  app.enableShutdownHooks();
+  // main.ts coordena sinais para aguardar a expiração antes de desconectar.
   return app;
 }

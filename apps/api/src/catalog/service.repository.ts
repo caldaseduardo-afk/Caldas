@@ -1,3 +1,5 @@
+import { recordAudit } from '@atendente/database';
+import { authorizedTenantFilter } from '../permissions/authorization.service';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../auth/database.service';
 import { AuthorizationService } from '../permissions/authorization.service';
@@ -14,6 +16,33 @@ export class ServiceRepository {
     private readonly database: DatabaseService,
     private readonly authorization: AuthorizationService,
   ) {}
+  async forAttendance(specialtyId?: string) {
+    const scope =
+      await this.authorization.requirePermissions('appointment.view');
+    const where = {
+      tenantId: scope.tenantId,
+      tenant: authorizedTenantFilter(scope, ['appointment.view']),
+    };
+    if (
+      specialtyId &&
+      !(await this.database.client.specialty.findFirst({
+        where: { ...where, id: specialtyId, active: true },
+        select: { id: true },
+      }))
+    )
+      throw new NotFoundException('Recurso não encontrado.');
+    return this.database.client.service.findMany({
+      where: {
+        ...where,
+        active: true,
+        specialtyId,
+        specialty: { active: true },
+      },
+      select: { id: true, name: true, durationMinutes: true },
+      orderBy: { id: 'asc' },
+      take: 100,
+    });
+  }
   async list(filter: CatalogFilter) {
     const scope = await this.authorization.requirePermissions('service.manage');
     if (
@@ -71,7 +100,7 @@ export class ServiceRepository {
           },
           select: serviceFields,
         });
-        await tx.authEvent.create({
+        await recordAudit(tx, {
           data: {
             type: 'SERVICE_CREATED',
             tenantId: scope.tenantId,
@@ -122,7 +151,7 @@ export class ServiceRepository {
           select: serviceFields,
         });
         if (!row) throw new NotFoundException('Recurso não encontrado.');
-        await tx.authEvent.create({
+        await recordAudit(tx, {
           data: {
             type: 'SERVICE_UPDATED',
             tenantId: scope.tenantId,

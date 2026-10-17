@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { raw } from 'express';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { Request, Response, NextFunction } from 'express';
@@ -9,7 +10,32 @@ export function configureApplication(
   app: NestExpressApplication,
   config: AuthConfig,
 ) {
+  app.use(
+    '/webhooks/whatsapp',
+    raw({ type: 'application/json', limit: '256kb', inflate: false }),
+  );
   app.useBodyParser('json', { limit: '8kb' });
+  app.use(
+    (
+      error: unknown,
+      _request: Request,
+      response: Response,
+      next: NextFunction,
+    ) => {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'type' in error &&
+        ['entity.too.large', 'entity.parse.failed'].includes(String(error.type))
+      ) {
+        response
+          .status(error.type === 'entity.too.large' ? 413 : 400)
+          .json({ message: 'Payload inválido.' });
+        return;
+      }
+      next(error);
+    },
+  );
   app.enableCors({
     origin: config.origin,
     credentials: true,

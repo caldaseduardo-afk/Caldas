@@ -1,3 +1,4 @@
+import { recordAudit } from '@atendente/database';
 import {
   ConflictException,
   Injectable,
@@ -40,7 +41,7 @@ export class ContactChannelRepository {
           primary,
         },
       });
-      await tx.authEvent.create({
+      await recordAudit(tx, {
         data: {
           type: 'CONTACT_CHANNEL_CREATED',
           userId: scope.userId,
@@ -92,7 +93,7 @@ export class ContactChannelRepository {
         },
       });
       if (!channel) throw new NotFoundException('Canal não encontrado.');
-      await tx.authEvent.create({
+      await recordAudit(tx, {
         data: {
           type: 'CONTACT_CHANNEL_UPDATED',
           userId: scope.userId,

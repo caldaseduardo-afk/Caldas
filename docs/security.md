@@ -269,3 +269,174 @@ servidor. Services e repositories validam permissões; queries repetem filtros d
 autorização. Transações Serializable e lock de escrita do Patient serializam
 mudanças dos vínculos/principal. Conflitos retornam 409 genérico; auditoria falhou,
 operação é desfeita. Revogar mantém histórico e bloqueia a próxima consulta.
+
+## WebSocket — TASK-017
+
+`GET /realtime` via upgrade reutiliza o cookie HttpOnly de AuthService, exigindo
+Origin exatamente igual a AUTH_ORIGIN e sessão com tenant ativo. Query strings,
+IDs de tenant/subscription e tokens no URL não são aceitos. O endpoint de upgrade
+não passa pelos guards HTTP do Nest: aplica explicitamente autenticação existente
+e authorizedTenantFilter com conversation.view + contact.view. Nenhuma credencial
+nova é criada. Respostas HTTP de recusa são genéricas.
+
+Cada entrega revalida usuário/sessão/vínculo/tenant/RBAC no banco; leitura da
+conversa ou mensagem também repete o filtro. Usuário inativo, MFA pendente, sessão
+expirada/revogada e tenant inválido bloqueiam. A política de unidade é a mesma da
+Inbox REST atual: Conversation não tem escopo adicional por unidade neste modelo.
+Não criar autorização mais permissiva no transporte.
+
+Logout, renovação de login e seleção de tenant invalidam conexões locais da sessão
+após commit. Heartbeat de 20s revalida sessões ociosas; alterações administrativas
+sem evento encerram a conexão até o próximo heartbeat. Antes de qualquer entrega
+protegida a validação é repetida, independentemente desse intervalo. Ping/pong
+encerra conexões mortas. Mensagens client→server são rejeitadas (1008), maxPayload
+1 KiB, fila por conexão limitada a 100 avisos e buffer de saída a 1 MiB; clientes
+lentos são desconectados para ressincronizar.
+
+Logs registram abertura/fechamento (tenant/user), publicação (eventId/tipo/IDs) e
+falhas genéricas. Não registram cookies, tokens, conteúdo ou metadados clínicos.
+O cliente trata eventos apenas como invalidação e mantém escaping React no REST.
+
+## Ownership de atendimento — TASK-018
+
+Message USER exige estado HUMAN_ACTIVE e assignedUserId igual ao ator da sessão,
+além de conversation.reply, no service/repository existente. Transferência não
+concede bypass de resposta: deve ser executada explicitamente com permissão
+conversation.transfer e alvo elegível no tenant. Return/resolve exigem ownership.
+Claim concorrente é decidido por PostgreSQL Serializable com lock e update
+condicional; timestamps/audit/estado são atômicos. Generic status não contorna
+esse fluxo. Usuário inativado perde acesso imediatamente pelas validações existentes;
+recuperação da conversa é transferência manual por operador autorizado.
+
+## SLA humano — TASK-019
+
+Configuração e preview exigem settings.manage nos guards/services/repositories,
+com filtro SQL de tenant/sessão/permissão. Frontend não fornece tenant/ator/ciclo.
+Atendentes veem alertas nas projections autorizadas da Inbox existente.
+
+Jobs internos contêm somente tenantId/jobId, derivados da transação de handoff.
+Worker valida o job no mesmo tenant e reconsulta regra/tenant/ciclo/conversa sob
+lock, sem confiar apenas no payload Redis. Não existe endpoint público para executar
+job ou definir slaLevel. FKs compostas e constraints protegem escritores SQL.
+Mensagens, contatos, pacientes, tokens e destino externo não são copiados para jobs.
+Alterações, alertas e limpeza são auditados atomicamente. Acesso à infraestrutura
+Redis é administrativo, não canal autenticado de usuário. O gateway mantém sua
+validação de acesso por evento; QueueEvents não autoriza leitura por si.
+
+## Webhook e envio WhatsApp — TASK-020
+
+Somente o controller explicitamente marcado auth:provider-webhook é isento de Origin
+para POST externo. Public isoladamente continua insuficiente para contornar Origin.
+Webhook verifica HMAC-SHA256 constante sobre bytes originais antes de JSON/processamento;
+limite específico 256 KiB sem descompressão; validação em lista de campos normalizados.
+GET challenge exige verify token; logs da aplicação não registram URL/query/header/body.
+Na implantação, também redigir tokens na configuração de logs do proxy externo.
+
+Tenant deriva exclusivamente da Integration configurada por operador, phoneNumberId e
+WABA autenticados pelo app secret. Nenhum cadastro/reatribuição de número pela API de
+clínica. Integration credentialsReference resolve somente namespace próprio de tokens;
+settings null é exigido pelo banco. Verificação do webhook não equivale à autenticação
+do contato/paciente; nenhuma autorização clínica é inferida.
+
+Envio exige RBAC/ownership/tenant na transação de intenção e revalida associação, papel,
+permissões, contato, estado/responsável e integração antes de chamar o provider no worker.
+Transferir/resolver após a reserva transacional do envio não revoga a chamada externa
+já autorizada por esse claim; não existe transação distribuída com a Meta.
+Jobs carregam somente tenantId/messageId, nunca texto/token. Requests usam bearer no header
+para host Graph fixo, não aceitam URL externa/redirect arbitrário. Erros Meta são convertidos
+em códigos internos; raw error/body/headers não chegam a audit/logs/responses.
+
+Idempotência tem constraints SQL e transações Serializable; não depende só de SELECT.
+Erro externo não apaga Message. Resultado incerto não é repetido automaticamente.
+Recibos validam tenant/integração/destinatário e correlação de tentativa iniciada; conhecer
+UUID de Message alheia não autoriza mutação. Projections REST e gateway mantêm RBAC.
+
+## Tool Gateway — TASK-022
+
+`ToolGateway` é interno, sem controller/endpoint de execução. `beginTurn` só é chamado
+por código confiável, com sessão humana real; emite objeto opaco vinculado por identidade
+ao request/service. Tenant, contato e paciente ativo vêm da sessão e Conversation, nunca
+dos argumentos do modelo. Contexto fabricado, campos extras e ferramentas desconhecidas
+falham fechado. Ator AI usa dez capacidades explícitas **intersectadas** com RBAC do usuário
+executor; não existe usuário fictício nem permissão administrativa implícita. Execução
+autônoma da TASK-023 usa o grant interno descrito abaixo, sem fabricar membership ou
+sessão humana.
+
+AI só opera AI_ACTIVE. USER opera AI_ACTIVE ou HUMAN_ACTIVE sendo o responsável. Demais
+estados bloqueiam atendimento. Replay de handoff já concluído pode retornar seu resultado
+em NEEDS_HUMAN, com as mesmas verificações de identidade/contexto, sem novo ciclo.
+
+Operações de agenda exigem paciente ativo e ContactPatient ativo VERIFIED com FULL ou
+SCHEDULING_ONLY. Conhecer UUID não concede acesso; Appointment/HOLD deve corresponder ao
+mesmo contato e paciente da conversa. Dados clínicos, documentos, nascimento, notas e
+preços não são retornados pelas tools. Catálogo e solicitação de humano não requerem
+acesso a paciente: relação insuficiente não impede pedir ajuda. get_contact_context omite
+vínculos não autorizados e retorna activePatientId null se não houver vínculo permitido.
+
+Cancelar/remarcar/confirmar exigem aprovação estruturada do **payload exato** em beginTurn,
+fornecida pelo chamador confiável após resolver a intenção. Nenhum argumento do modelo
+liga essa aprovação. Não há interpretação de texto nem confirmação automática nesta task.
+Services existentes continuam aplicando RBAC e regras de domínio. Boundary interno via
+AsyncLocalStorage revalida Conversation/Patient sob lock dentro das transações existentes
+de HOLD, Appointment e handoff; deadline também é checado antes do commit. Sem alteração
+no comportamento das rotas humanas quando não há boundary de tool.
+
+ToolExecution contém intenção/outcome técnico, ator AI/USER e usuário executor, tenant,
+conversa/contato/paciente, correlação, fingerprint e target. Sem argumentos, prompt, segredo
+ou conteúdo clínico. Resultados mutáveis cacheados contêm apenas IDs/instantes/status/motivo
+enumerado. Leituras não são cacheadas. Recusas com contexto autorizado são auditadas;
+contexto inválido/revogado não permite criar audit em tenant arbitrário. Logs usam allowlist.
+
+Um timeout não prova ausência de commit. Ledger RUNNING bloqueia nova execução da mesma
+chave; resultado tardio finaliza a mesma intenção. Crash entre commit e finalização exige
+reconciliação, nunca reset/retry automático. Auditoria de domínio continua atômica com a
+mutação e identifica usuário real; ledger preserva a origem AI delegada. Nenhum SQL/código/
+URL arbitrário ou integração externa é ferramenta deste registry.
+
+## Conversation Engine — TASK-023
+
+Cada turno autônomo começa em um `AIProcessingRun` já relacionado por FKs compostas ao
+tenant, conversa e mensagem PATIENT. O job Redis contém somente esses UUIDs. Antes de
+inferência, a aplicação valida tenant ativo, estado da conversa, mensagem, ordem e lease.
+O modelo nunca recebe tenantId como autoridade e não acessa Prisma, SQL ou repositories.
+
+Um grant efêmero liga run, conversa, tenant e owner do lease. `AsyncLocalStorage` torna o
+grant visível apenas durante o callback do worker; uma registry privada deixa filtros SQL
+reconhecerem esse escopo enquanto ele está ativo. Depois do callback, o mesmo objeto deixa
+de autorizar consultas. Não há controller para criar grant. A admissão é revalidada no
+banco e permite somente o conjunto mínimo usado por inferência e pelas tools liberadas.
+
+Nesta task, o engine pode usar tools de leitura e `transfer_to_human`. Mutações de agenda
+ficam negadas no gateway, mesmo estando no registry geral da TASK-022. ToolExecution usa
+o run como actorId técnico de AI; audits de domínio não apontam esse UUID para User.
+
+Contexto é projetado por allowlist, limitado em quantidade e no tempo até a mensagem do
+run. Metadata, credenciais, documentos e dados clínicos são omitidos. Sanitização é defesa
+adicional, enquanto autorização permanece nos services/repositories. Saída inválida,
+timeout, perda de lease e erro definitivo resultam em falha segura e handoff; nunca em
+execução de texto livre.
+
+Resposta e resumo são persistidos antes do evento realtime e do envio. Falha de provider
+de mensagens altera somente deliveryStatus da Message já criada. Idempotência do run e
+FK única de resposta impedem regenerar ou enviar uma segunda resposta por retry do job.
+
+## Conteúdo recuperado da Base de Conhecimento
+
+Conteúdo editorial é dado não confiável, mesmo depois de publicado. O backend remove scripts, tags HTML e caracteres de controle, limita o tamanho e o entrega ao AIProvider em um bloco `KNOWLEDGE/TOOL CONTEXT` separado das instruções de sistema. Comandos, SQL, chamadas de tool e tentativas de prompt injection presentes no artigo não têm autoridade. A tool não aceita `tenantId`; o contexto interno define o tenant e o repository filtra tenant, publicação e vigência antes do ranking. Um miss de retrieval gera fallback controlado e não permite que uma afirmação factual inventada seja persistida.
+
+## Configuração de IA por tenant
+
+Texto administrativo configurado pelo tenant tem autoridade inferior às regras fixas da plataforma. A validação recusa campos extras, padrões de segredo e tentativas explícitas de ignorar tenant, autorização, SQL ou handoff clínico. Essa validação é defesa adicional: tenant, RBAC, capabilities e execução de tools continuam impostos por código e consultas tenant-scoped.
+
+A simulação é `DRY_RUN`: pode ler somente a Base de Conhecimento publicada do tenant e não cria turno de tools, HOLD, Appointment, Message ou envio externo. Publicação e restauração exigem `ai_config.publish`; criação/edição/simulação exigem `settings.manage`; leitura exige `settings.view`. Todas as mudanças e simulações geram auditoria sem copiar instruções completas para o evento.
+
+## Auditoria consolidada — TASK-030
+
+A auditoria de negócio usa a tabela histórica auth_events evoluída, com contexto
+estruturado de ator/origem/recurso, sanitização central e escrita transacional.
+Atribuição via IA é AI/AI_ENGINE, mesmo quando há executor humano autorizado;
+ToolExecution preserva o executor técnico sem criar segunda auditoria da mutação.
+Consulta exige audit.view e revalida tenant/RBAC na query. Não há endpoints de
+alteração/exclusão. A matriz, exceção de identidade global e limitações de histórico
+estão em [audit.md](audit.md). As regras desta seção atualizam as descrições
+anteriores de autoria da auditoria nas tasks de tools e engine.

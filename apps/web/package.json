@@ -8,15 +8,18 @@
     "start": "next start --hostname 0.0.0.0",
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "tsx --test test/*.test.tsx"
+    "test": "tsx --test test/*.test.tsx",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@atendente/ui": "workspace:*",
     "next": "^16.1.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "@atendente/ui": "workspace:*"
+    "@atendente/types": "workspace:*"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0"
   }

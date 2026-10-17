@@ -26,6 +26,8 @@ function run(command, args, capture = false) {
   return result.stdout?.trim();
 }
 
+const redisName = `${name}-redis`;
+let redisStarted = false;
 let started = false;
 try {
   run(
@@ -77,12 +79,46 @@ try {
     .at(-1);
   environment.DATABASE_URL = `postgresql://postgres:${password}@127.0.0.1:${port}/task002_test`;
   environment.TEST_DATABASE_URL = environment.DATABASE_URL;
+  run(
+    'docker',
+    [
+      'run',
+      '--detach',
+      '--rm',
+      '--name',
+      redisName,
+      '--publish',
+      '127.0.0.1::6379',
+      'redis:7.4-alpine',
+    ],
+    true,
+  );
+  redisStarted = true;
+  let redisReady = false;
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const ping = spawnSync('docker', ['exec', redisName, 'redis-cli', 'ping'], {
+      encoding: 'utf8',
+      timeout: 5000,
+    });
+    if (ping.status === 0 && ping.stdout.trim() === 'PONG') {
+      redisReady = true;
+      break;
+    }
+    await setTimeout(500);
+  }
+  if (!redisReady) throw new Error('Redis de teste indisponível.');
+  const redisPort = run('docker', ['port', redisName, '6379/tcp'], true)
+    .split(':')
+    .at(-1);
+  environment.REDIS_URL = `redis://127.0.0.1:${redisPort}/0`;
+  environment.TEST_REDIS_URL = environment.REDIS_URL;
   const scoped = ['--filter', '@atendente/database'];
   run('pnpm', [...scoped, 'db:migrate']);
   run('pnpm', [...scoped, 'db:migrate']);
   run('pnpm', [...scoped, 'db:seed']);
   run('pnpm', [...scoped, 'db:seed']);
   run('pnpm', [...scoped, 'test:integration']);
+  run('pnpm', ['--filter', '@atendente/types', 'build']);
   run('pnpm', ['--filter', '@atendente/api', 'test:integration']);
   console.log(
     'Migrations do zero, reaplicação, seed e testes de integração aprovados.',
@@ -93,6 +129,11 @@ try {
   );
   process.exitCode = 1;
 } finally {
+  if (redisStarted)
+    spawnSync('docker', ['rm', '--force', redisName], {
+      stdio: 'ignore',
+      timeout: 30000,
+    });
   if (started) {
     const cleanup = spawnSync('docker', ['rm', '--force', name], {
       stdio: 'ignore',

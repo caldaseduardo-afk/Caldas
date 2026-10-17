@@ -13,3 +13,7 @@ coverage/
 .vscode/
 .test-dist/
 packages/database/src/generated/
+
+# Artefatos locais dos testes de navegador
+apps/web/test-results/
+apps/web/playwright-report/

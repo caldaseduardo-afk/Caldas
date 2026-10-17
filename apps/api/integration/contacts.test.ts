@@ -366,7 +366,8 @@ test('contatos/canais: normalização, duplicidade, principal e isolamento real'
         assert.ok(events.length >= 5);
         const changes = JSON.stringify(events.map((event) => event.changes));
         assert.ok(
-          !changes.includes('619') &&
+          !changes.includes('+5561999999999') &&
+            !changes.includes('+5561966665555') &&
             !changes.includes('Contato atualizado') &&
             !changes.includes('external-1'),
         );

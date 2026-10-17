@@ -1,8 +1,10 @@
+import { recordAudit } from '@atendente/database';
+import { RealtimeEvents } from '../realtime/realtime.events';
 import {
   AuthorizationService,
   authorizedTenantFilter,
 } from '../permissions/authorization.service';
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, Optional } from '@nestjs/common';
 import { DatabaseService } from '../auth/database.service';
 import { TenantContext, enabledUser } from './tenant.context';
 
@@ -14,6 +16,7 @@ export class TenantRepository {
     private readonly database: DatabaseService,
     private readonly context: TenantContext,
     private readonly authorization: AuthorizationService,
+    @Optional() private readonly events?: RealtimeEvents,
   ) {}
 
   async listAvailable() {
@@ -41,7 +44,7 @@ export class TenantRepository {
 
   async select(tenantId: string) {
     const { userId, sessionId } = this.context.requireIdentity();
-    return this.database.client.$transaction(async (tx) => {
+    const result = await this.database.client.$transaction(async (tx) => {
       // A autorização faz parte do UPDATE, não apenas de uma leitura anterior.
       const changed = await tx.authSession.updateMany({
         where: {
@@ -59,11 +62,13 @@ export class TenantRepository {
       });
       if (changed.count !== 1)
         throw new ForbiddenException('Tenant indisponível para esta sessão.');
-      await tx.authEvent.create({
+      await recordAudit(tx, {
         data: { type: 'TENANT_SELECTED', userId, tenantId },
       });
       return { tenantId };
     });
+    this.events?.invalidateSession(sessionId);
+    return result;
   }
 
   async current() {

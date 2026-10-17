@@ -1,3 +1,4 @@
+import { recordAudit } from '@atendente/database';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../auth/database.service';
 import {
@@ -42,7 +43,7 @@ export class ClinicRepository {
           data: { name: dto.name, status: dto.status, timezone: dto.timezone },
         });
         if (!tenant) throw new NotFoundException('Recurso não encontrado.');
-        await tx.authEvent.create({
+        await recordAudit(tx, {
           data: {
             type:
               tenant.status === 'INACTIVE'

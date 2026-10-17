@@ -1,3 +1,4 @@
+import { recordAudit } from '@atendente/database';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../auth/database.service';
 import { AuthorizationService } from '../permissions/authorization.service';
@@ -50,7 +51,7 @@ export class PatientRepository {
         },
         select: patientDetails,
       });
-      await tx.authEvent.create({
+      await recordAudit(tx, {
         data: {
           type: 'PATIENT_CREATED',
           userId: scope.userId,
@@ -77,7 +78,7 @@ export class PatientRepository {
         select: patientDetails,
       });
       if (!patient) throw new NotFoundException('Paciente não encontrado.');
-      await tx.authEvent.create({
+      await recordAudit(tx, {
         data: {
           type: 'PATIENT_UPDATED',
           userId: scope.userId,

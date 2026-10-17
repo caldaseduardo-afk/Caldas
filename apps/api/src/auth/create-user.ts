@@ -1,3 +1,4 @@
+import { recordAudit } from '@atendente/database';
 import { createDatabaseClient } from '@atendente/database';
 import { normalizeEmail } from './auth.input';
 import { hashPassword } from './password';
@@ -17,8 +18,8 @@ async function main() {
       const user = await tx.user.create({
         data: { email, name, passwordHash },
       });
-      await tx.authEvent.create({
-        data: { type: 'USER_CREATED', userId: user.id },
+      await recordAudit(tx, {
+        data: { type: 'USER_CREATED', resourceId: user.id },
       });
     });
     console.log(

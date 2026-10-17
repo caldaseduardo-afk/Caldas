@@ -1,3 +1,5 @@
+import { PlatformSecurityModule } from '../platform-admin/platform-security.module';
+import { RealtimeEventsModule } from '../realtime/realtime.events';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { PermissionGuard } from '../permissions/permission.guard';
 import { Module } from '@nestjs/common';
@@ -11,7 +13,14 @@ import { TenantGuard } from '../tenancy/tenant.guard';
 import { AuthController } from './auth.controller';
 
 @Module({
-  imports: [DatabaseModule, TenancyModule, PermissionsModule],
+  imports: [
+    PlatformSecurityModule,
+    RealtimeEventsModule,
+    DatabaseModule,
+    TenancyModule,
+    PermissionsModule,
+  ],
+  exports: [AuthService, AuthConfig],
   controllers: [AuthController],
   providers: [
     AuthService,

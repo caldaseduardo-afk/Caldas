@@ -19,6 +19,7 @@ export class TenantGuard implements CanActivate {
   async canActivate(execution: ExecutionContext) {
     const targets = [execution.getHandler(), execution.getClass()];
     if (
+      this.reflector.getAllAndOverride<boolean>('platform:required', targets) ||
       this.reflector.getAllAndOverride<boolean>('auth:public', targets) ||
       this.reflector.getAllAndOverride<boolean>('tenant:optional', targets)
     )

@@ -1,7 +1,10 @@
+import { recordAudit } from '@atendente/database';
+import { RealtimeEvents } from '../realtime/realtime.events';
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 import {
   HttpException,
   Injectable,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthConfig } from './auth.config';
@@ -22,6 +25,7 @@ export class AuthService {
   constructor(
     private readonly database: DatabaseService,
     private readonly config: AuthConfig,
+    @Optional() private readonly events?: RealtimeEvents,
   ) {}
 
   private pseudonym(value: string) {
@@ -43,7 +47,7 @@ export class AuthService {
           expires_at = CASE WHEN auth_throttles.expires_at <= CURRENT_TIMESTAMP THEN CURRENT_TIMESTAMP + INTERVAL '15 minutes' ELSE auth_throttles.expires_at END
         RETURNING attempts`;
       if (rows[0]!.attempts > maximum) {
-        await client.authEvent.create({
+        await recordAudit(client, {
           data: { type: 'LOGIN_THROTTLED', ipHash: this.pseudonym(`ip:${ip}`) },
         });
         throw new HttpException('Tente novamente mais tarde.', 429);
@@ -71,14 +75,20 @@ export class AuthService {
       user.mfaEnabled ||
       user.mfaRequired
     ) {
-      await client.authEvent.create({
+      await recordAudit(client, {
         data: { type: 'LOGIN_FAILED', userId: user?.id, ipHash },
       });
       throw new UnauthorizedException('Credenciais inválidas.');
     }
     const token = randomBytes(32).toString('base64url');
     const expiresAt = new Date(Date.now() + this.config.sessionMs);
-    await client.$transaction(async (tx) => {
+    const oldSessionId = await client.$transaction(async (tx) => {
+      const old = oldToken
+        ? await tx.authSession.findUnique({
+            where: { tokenHash: tokenHash(oldToken) },
+            select: { id: true },
+          })
+        : null;
       if (oldToken)
         await tx.authSession.deleteMany({
           where: { tokenHash: tokenHash(oldToken) },
@@ -86,10 +96,12 @@ export class AuthService {
       await tx.authSession.create({
         data: { userId: user.id, tokenHash: tokenHash(token), expiresAt },
       });
-      await tx.authEvent.create({
+      await recordAudit(tx, {
         data: { type: 'LOGIN_SUCCEEDED', userId: user.id, ipHash },
       });
+      return old?.id;
     });
+    if (oldSessionId) this.events?.invalidateSession(oldSessionId);
     return { token, user: { id: user.id, name: user.name, email: user.email } };
   }
 
@@ -123,11 +135,17 @@ export class AuthService {
   }
 
   async logout(token: string, userId: string) {
-    await this.database.client.$transaction(async (tx) => {
+    const sessionId = await this.database.client.$transaction(async (tx) => {
+      const session = await tx.authSession.findFirst({
+        where: { tokenHash: tokenHash(token), userId },
+        select: { id: true },
+      });
       await tx.authSession.deleteMany({
         where: { tokenHash: tokenHash(token), userId },
       });
-      await tx.authEvent.create({ data: { type: 'LOGOUT', userId } });
+      await recordAudit(tx, { data: { type: 'LOGOUT', userId } });
+      return session?.id;
     });
+    if (sessionId) this.events?.invalidateSession(sessionId);
   }
 }

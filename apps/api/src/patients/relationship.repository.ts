@@ -1,3 +1,4 @@
+import { recordAudit } from '@atendente/database';
 import {
   ConflictException,
   Injectable,
@@ -147,7 +148,7 @@ export class RelationshipRepository {
         },
         select: relationshipFields,
       });
-      await tx.authEvent.create({
+      await recordAudit(tx, {
         data: {
           type: 'CONTACT_PATIENT_CREATED',
           userId: scope.userId,
@@ -214,7 +215,7 @@ export class RelationshipRepository {
         select: relationshipFields,
       });
       if (!link) throw new NotFoundException('Recurso não encontrado.');
-      await tx.authEvent.create({
+      await recordAudit(tx, {
         data: {
           type: 'CONTACT_PATIENT_UPDATED',
           userId: scope.userId,
@@ -256,7 +257,7 @@ export class RelationshipRepository {
         select: relationshipFields,
       });
       if (!link) throw new NotFoundException('Recurso não encontrado.');
-      await tx.authEvent.create({
+      await recordAudit(tx, {
         data: {
           type: 'CONTACT_PATIENT_REVOKED',
           userId: scope.userId,

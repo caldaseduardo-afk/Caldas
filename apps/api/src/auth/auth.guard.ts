@@ -1,5 +1,7 @@
+import { PlatformAuthService, type PlatformScope } from '../platform-admin/platform-auth.service';
 import {
   CanActivate,
+  Optional,
   ExecutionContext,
   ForbiddenException,
   Injectable,
@@ -14,12 +16,16 @@ import { AuthService, type Identity } from './auth.service';
 
 export const Public = () => SetMetadata('auth:public', true);
 export interface AuthRequest extends Request {
+  platform?: PlatformScope;
   identity?: Identity;
   sessionToken?: string;
   sessionId?: string;
   activeTenantId?: string | null;
 }
-export function readToken(request: Request, config: AuthConfig) {
+export function readToken(
+  request: Pick<Request, 'headers'>,
+  config: AuthConfig,
+) {
   const token = parse(request.headers.cookie ?? '')[config.cookieName];
   return token && /^[A-Za-z0-9_-]{43}$/.test(token) ? token : undefined;
 }
@@ -30,10 +36,16 @@ export class AuthGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly auth: AuthService,
     private readonly config: AuthConfig,
+    @Optional() private readonly platformAuth?: PlatformAuthService,
   ) {}
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<AuthRequest>();
+    const providerWebhook = this.reflector.getAllAndOverride<boolean>(
+      'auth:provider-webhook',
+      [context.getHandler(), context.getClass()],
+    );
     if (
+      !providerWebhook &&
       !['GET', 'HEAD', 'OPTIONS'].includes(request.method) &&
       request.headers.origin !== this.config.origin
     ) {
@@ -46,6 +58,16 @@ export class AuthGuard implements CanActivate {
       ])
     )
       return true;
+    if (this.reflector.getAllAndOverride<boolean>('platform:required', [context.getHandler(), context.getClass()])) {
+      const platformToken = this.platformAuth && parse(request.headers.cookie ?? '')[this.platformAuth.cookieName];
+      if (!platformToken || !this.platformAuth) {
+        const clinicalToken = readToken(request, this.config);
+        if (clinicalToken) { await this.auth.authenticate(clinicalToken); throw new ForbiddenException('Acesso exclusivo da plataforma.'); }
+        throw new UnauthorizedException();
+      }
+      request.platform = await this.platformAuth.authenticate(platformToken);
+      return true;
+    }
     const token = readToken(request, this.config);
     if (!token) throw new UnauthorizedException();
     const authenticated = await this.auth.authenticate(token);

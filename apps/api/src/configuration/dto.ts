@@ -39,3 +39,17 @@ export function timezoneField(value: unknown): string {
     throw new BadRequestException('Timezone inválido.');
   }
 }
+
+// Decimal(12,2): preservar precisão desde a entrada, sem conversão para Number.
+export function moneyField(value: unknown): string | null {
+  if (value === null) return null;
+  if (
+    typeof value !== 'string' ||
+    !/^(0|[1-9][0-9]{0,9})(\.[0-9]{1,2})?$/.test(value)
+  )
+    throw new BadRequestException(
+      'Preço deve ser string decimal não negativa com até duas casas.',
+    );
+  const [whole, fraction = ''] = value.split('.');
+  return `${whole}.${fraction.padEnd(2, '0')}`;
+}

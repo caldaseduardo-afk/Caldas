@@ -22,7 +22,7 @@ export function createDatabaseClient(connectionString: string) {
   });
 }
 
-export type { Prisma } from './generated/prisma/client';
+export { Prisma } from './generated/prisma/client';
 
 export {
   PERMISSIONS,
@@ -30,3 +30,48 @@ export {
   OPERATIONAL_ROLES,
   type PermissionName,
 } from './rbac-catalog';
+
+export {
+  databaseNow,
+  expireTenantHolds,
+  sweepExpiredHolds,
+} from './hold-expiration';
+export {
+  startHumanSlaCycle,
+  closeHumanSlaCycle,
+  processHumanSlaJob,
+  parseHumanSlaPayload,
+  type HumanSlaNotice,
+  type HumanSlaPayload,
+} from './human-sla';
+export {
+  HUMAN_SLA_QUEUE,
+  humanSlaConnection,
+  createHumanSlaQueue,
+  dispatchHumanSlaJobs,
+  createHumanSlaWorker,
+  subscribeHumanSlaUpdates,
+} from './human-sla-queue';
+export { WhatsAppProvider, whatsappAccessToken } from './whatsapp-provider';
+export * from './messaging-delivery';
+export * from './messaging-queue';
+export * from './conversation-engine-queue';
+export * from './notification-automation';
+export * from './notification-queue';
+export * from './google-calendar-provider';
+export * from './calendar-sync';
+export * from './calendar-sync-queue';
+export {
+  CalendarProviderError,
+  type CalendarProvider,
+  type CalendarProviderContext,
+  type CalendarEventInput,
+} from '@atendente/domain';
+export {
+  resolveNotificationSchedule,
+  resolveRetrySchedule,
+  resolveNotificationExecution,
+} from '@atendente/domain';
+
+export * from './audit';
+export { AuditActorType, AuditSource, AuditResourceType, AuthEventType } from './generated/prisma/client';

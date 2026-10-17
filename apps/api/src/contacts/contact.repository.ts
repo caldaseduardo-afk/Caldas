@@ -1,3 +1,4 @@
+import { recordAudit } from '@atendente/database';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../auth/database.service';
 import { AuthorizationService } from '../permissions/authorization.service';
@@ -68,7 +69,7 @@ export class ContactRepository {
             primary: index === (explicit < 0 ? 0 : explicit),
           },
         });
-      await tx.authEvent.create({
+      await recordAudit(tx, {
         data: {
           type: 'CONTACT_CREATED',
           userId: scope.userId,
@@ -99,7 +100,7 @@ export class ContactRepository {
         data: { displayName: dto.displayName, status: dto.status },
       });
       if (!contact) throw new NotFoundException('Contato não encontrado.');
-      await tx.authEvent.create({
+      await recordAudit(tx, {
         data: {
           type: 'CONTACT_UPDATED',
           userId: scope.userId,

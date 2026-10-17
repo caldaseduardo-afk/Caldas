@@ -1,3 +1,4 @@
+import type { AuthRequest } from '../auth/auth.guard';
 import {
   CanActivate,
   ExecutionContext,
@@ -19,6 +20,10 @@ export class PermissionGuard implements CanActivate {
     const targets = [context.getHandler(), context.getClass()];
     if (this.reflector.getAllAndOverride<boolean>('auth:public', targets))
       return true;
+    if (this.reflector.getAllAndOverride<boolean>('platform:required', targets)) {
+      if (!context.switchToHttp().getRequest<AuthRequest>().platform) throw new ForbiddenException();
+      return true;
+    }
     // Metadata de método e classe são cumulativos: método não remove exigência da classe.
     const permissions = targets.flatMap(
       (target) =>

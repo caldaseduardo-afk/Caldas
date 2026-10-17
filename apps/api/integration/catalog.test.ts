@@ -682,6 +682,13 @@ test('especialidades e serviços: catálogo, dinheiro exato, RBAC e isolamento r
             await new SpecialtyRepository(database, auth).list({}),
             [],
           );
+          // Permissão válida na captura; o wrapper a revoga antes da transação.
+          await client.userTenant.update({
+            where: {
+              userId_tenantId: { userId: users[0]!.id, tenantId: aTenant.id },
+            },
+            data: { active: true },
+          });
           await assert.rejects(
             new ServiceRepository(database, auth).update(va.id, {
               name: 'Negado',

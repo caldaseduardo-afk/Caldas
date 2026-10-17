@@ -1,3 +1,5 @@
+import { recordAudit } from '@atendente/database';
+import { authorizedTenantFilter } from '../permissions/authorization.service';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../auth/database.service';
 import { AuthorizationService } from '../permissions/authorization.service';
@@ -9,6 +11,20 @@ export class SpecialtyRepository {
     private readonly database: DatabaseService,
     private readonly authorization: AuthorizationService,
   ) {}
+  async forAttendance() {
+    const scope =
+      await this.authorization.requirePermissions('appointment.view');
+    const where = {
+      tenantId: scope.tenantId,
+      tenant: authorizedTenantFilter(scope, ['appointment.view']),
+    };
+    return this.database.client.specialty.findMany({
+      where: { ...where, active: true },
+      select: { id: true, name: true },
+      orderBy: { id: 'asc' },
+      take: 100,
+    });
+  }
   async list(filter: CatalogFilter) {
     const scope = await this.authorization.requirePermissions('service.manage');
     return this.database.client.specialty.findMany({
@@ -40,7 +56,7 @@ export class SpecialtyRepository {
           },
           select: specialtyFields,
         });
-        await tx.authEvent.create({
+        await recordAudit(tx, {
           data: {
             type: 'SPECIALTY_CREATED',
             tenantId: scope.tenantId,
@@ -68,7 +84,7 @@ export class SpecialtyRepository {
           select: specialtyFields,
         });
         if (!row) throw new NotFoundException('Recurso não encontrado.');
-        await tx.authEvent.create({
+        await recordAudit(tx, {
           data: {
             type: 'SPECIALTY_UPDATED',
             tenantId: scope.tenantId,

@@ -1,3 +1,4 @@
+import { RealtimeEventsModule } from '../realtime/realtime.events';
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.module';
 import { TenantContextModule } from './tenant-context.module';
@@ -9,6 +10,7 @@ import { TenancyController } from './tenancy.controller';
 
 @Module({
   imports: [
+    RealtimeEventsModule,
     DatabaseModule,
     TenantContextModule,
     PermissionsModule,

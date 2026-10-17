@@ -10,35 +10,71 @@ datasource db {
 }
 
 model Tenant {
-  specialties     Specialty[]
-  services        Service[]
-  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name            String
-  status          String
-  timezone        String
-  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  units           Unit[]
-  memberships     UserTenant[]
-  authEvents      AuthEvent[]
-  contacts        Contact[]
-  contactChannels ContactChannel[]
-  patients        Patient[]
-  patientLinks    ContactPatient[]
+  calendarIntegration           CalendarIntegration?
+  calendarSyncAttempts          CalendarSyncAttempt[]
+  notificationAttempts         NotificationAttempt[]
+  aiConfiguration              AIConfiguration?
+  aiConfigurationVersions      AIConfigurationVersion[]
+  knowledgeArticles            KnowledgeArticle[]
+  knowledgeArticleVersions     KnowledgeArticleVersion[]
+  schedulingWorkflows          SchedulingWorkflow[]
+  schedulingSlotOptions        SchedulingSlotOption[]
+  schedulingAppointmentOptions SchedulingAppointmentOption[]
+  aiProcessingRuns             AIProcessingRun[]
+  conversationEngineLeases     ConversationEngineLease[]
+  toolExecutions               ToolExecution[]
+  aiUsages                     AIUsage[]
+  integrations                 Integration[]
+  humanSlaRule                 HumanSlaRule?
+  humanSlaCycles               HumanSlaCycle[]
+  humanSlaJobs                 HumanSlaJob[]
+  conversations                Conversation[]
+  messages                     Message[]
+  notificationRules            NotificationRule[]
+  appointments                 Appointment[]
+  appointmentHolds             AppointmentHold[]
+  availabilityRules            AvailabilityRule[]
+  scheduleExceptions           ScheduleException[]
+  providers                    Provider[]
+  providerServices             ProviderService[]
+  providerUnits                ProviderUnit[]
+  specialties                  Specialty[]
+  services                     Service[]
+  id                           String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                         String
+  status                       String
+  timezone                     String
+  createdAt                    DateTime                      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                    DateTime                      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  units                        Unit[]
+  memberships                  UserTenant[]
+  authEvents                   AuthEvent[]
+  contacts                     Contact[]
+  contactChannels              ContactChannel[]
+  patients                     Patient[]
+  patientLinks                 ContactPatient[]
 
   @@map("tenants")
 }
 
 model Unit {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId         String   @map("tenant_id") @db.Uuid
-  name             String
-  address          String
-  timezoneOverride String?  @map("timezone_override")
-  active           Boolean  @default(true)
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  knowledgeArticles     KnowledgeArticle[]
+  schedulingWorkflows   SchedulingWorkflow[]
+  schedulingSlotOptions SchedulingSlotOption[]
+  appointments          Appointment[]
+  appointmentHolds      AppointmentHold[]
+  availabilityRules     AvailabilityRule[]
+  scheduleExceptions    ScheduleException[]
+  providers             ProviderUnit[]
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId              String                 @map("tenant_id") @db.Uuid
+  name                  String
+  address               String
+  timezoneOverride      String?                @map("timezone_override")
+  active                Boolean                @default(true)
+  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([tenantId, id])
   @@map("units")
@@ -50,6 +86,77 @@ enum UserStatus {
 }
 
 enum AuthEventType {
+  PLATFORM_ADMIN_GRANTED
+  PLATFORM_ADMIN_REVOKED
+  PLATFORM_MFA_ENROLLED
+  PLATFORM_LOGIN_SUCCEEDED
+  PLATFORM_LOGIN_FAILED
+  PLATFORM_LOGOUT
+  PLATFORM_TENANT_VIEWED
+  CALENDAR_INTEGRATION_CONFIGURED
+  CALENDAR_CONNECTION_TESTED
+  CALENDAR_SYNC_SUCCEEDED
+  CALENDAR_SYNC_FAILED
+  AI_CONFIG_VERSION_CREATED
+  AI_CONFIG_VERSION_UPDATED
+  AI_CONFIG_PUBLISHED
+  AI_CONFIG_RESTORED
+  AI_CONFIG_SIMULATED
+  KNOWLEDGE_ARTICLE_CREATED
+  KNOWLEDGE_ARTICLE_UPDATED
+  KNOWLEDGE_ARTICLE_PUBLISHED
+  KNOWLEDGE_ARTICLE_INACTIVATED
+  SCHEDULING_WORKFLOW_STARTED
+  SCHEDULING_WORKFLOW_UPDATED
+  SCHEDULING_WORKFLOW_COMPLETED
+  SCHEDULING_WORKFLOW_ABANDONED
+  SCHEDULING_WORKFLOW_HANDOFF
+  CONVERSATION_ENGINE_STARTED
+  CONVERSATION_ENGINE_COMPLETED
+  CONVERSATION_ENGINE_FAILED
+  CONVERSATION_ENGINE_HANDOFF
+  INTEGRATION_CONFIGURED
+  MESSAGE_SEND_REQUESTED
+  MESSAGE_SEND_SUCCEEDED
+  MESSAGE_SEND_FAILED
+  HUMAN_SLA_RULE_CREATED
+  HUMAN_SLA_RULE_UPDATED
+  HUMAN_SLA_FIRST_ALERT
+  HUMAN_SLA_SECOND_ALERT
+  HUMAN_SLA_EXTERNAL_ALERT_REQUIRED
+  HUMAN_SLA_CLEARED
+  HUMAN_HANDOFF_REQUESTED
+  CONVERSATION_CLAIMED
+  CONVERSATION_TRANSFERRED
+  CONVERSATION_RETURNED_TO_AI
+  CONVERSATION_RESOLVED
+  CONVERSATION_CREATED
+  CONVERSATION_UPDATED
+  CONVERSATION_STATUS_CHANGED
+  MESSAGE_CREATED
+  MESSAGE_RECEIPT_UPDATED
+  NOTIFICATION_RULE_CREATED
+  NOTIFICATION_RULE_UPDATED
+  APPOINTMENT_CREATED
+  APPOINTMENT_CONFIRMED
+  APPOINTMENT_CANCELLED
+  APPOINTMENT_RESCHEDULED
+  APPOINTMENT_CHECKED_IN
+  APPOINTMENT_COMPLETED
+  APPOINTMENT_NO_SHOW
+  HOLD_CREATED
+  HOLD_RELEASED
+  HOLD_EXPIRED
+  AVAILABILITY_RULE_CREATED
+  AVAILABILITY_RULE_UPDATED
+  SCHEDULE_EXCEPTION_CREATED
+  SCHEDULE_EXCEPTION_UPDATED
+  PROVIDER_CREATED
+  PROVIDER_UPDATED
+  PROVIDER_SERVICE_CREATED
+  PROVIDER_SERVICE_UPDATED
+  PROVIDER_UNIT_CREATED
+  PROVIDER_UNIT_UPDATED
   SPECIALTY_CREATED
   SPECIALTY_UPDATED
   SERVICE_CREATED
@@ -79,18 +186,28 @@ enum AuthEventType {
 }
 
 model User {
-  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email        String        @unique
-  name         String
-  passwordHash String        @map("password_hash")
-  mfaEnabled   Boolean       @default(false) @map("mfa_enabled")
-  mfaRequired  Boolean       @default(false) @map("mfa_required")
-  status       UserStatus    @default(ACTIVE)
-  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  sessions     AuthSession[]
-  events       AuthEvent[]
-  memberships  UserTenant[]
+  platformAdmin PlatformAdmin?
+  platformSessions PlatformSession[]
+  id                               String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                            String                    @unique
+  name                             String
+  passwordHash                     String                    @map("password_hash")
+  mfaEnabled                       Boolean                   @default(false) @map("mfa_enabled")
+  mfaRequired                      Boolean                   @default(false) @map("mfa_required")
+  status                           UserStatus                @default(ACTIVE)
+  createdAt                        DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                        DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sessions                         AuthSession[]
+  events                           AuthEvent[]
+  memberships                      UserTenant[]
+  knowledgeArticlesCreated         KnowledgeArticle[]        @relation("KnowledgeArticleCreatedBy")
+  knowledgeArticlesUpdated         KnowledgeArticle[]        @relation("KnowledgeArticleUpdatedBy")
+  knowledgeVersionsCreated         KnowledgeArticleVersion[] @relation("KnowledgeVersionCreatedBy")
+  knowledgeVersionsUpdated         KnowledgeArticleVersion[] @relation("KnowledgeVersionUpdatedBy")
+  knowledgeVersionsPublished       KnowledgeArticleVersion[] @relation("KnowledgeVersionPublishedBy")
+  aiConfigurationVersionsCreated   AIConfigurationVersion[]  @relation("AIConfigVersionCreatedBy")
+  aiConfigurationVersionsUpdated   AIConfigurationVersion[]  @relation("AIConfigVersionUpdatedBy")
+  aiConfigurationVersionsPublished AIConfigurationVersion[]  @relation("AIConfigVersionPublishedBy")
 
   @@map("users")
 }
@@ -110,7 +227,59 @@ model AuthSession {
   @@map("auth_sessions")
 }
 
+enum AuditActorType {
+  USER
+  AI
+  SYSTEM
+  AUTOMATION
+  INTEGRATION
+  IMPORT
+}
+
+enum AuditSource {
+  WEB
+  API
+  WHATSAPP
+  AI_ENGINE
+  WORKER
+  GOOGLE_CALENDAR
+  SYSTEM
+  IMPORT
+}
+
+enum AuditResourceType {
+  TENANT
+  UNIT
+  USER
+  CONTACT
+  CONTACT_CHANNEL
+  PATIENT
+  CONTACT_PATIENT
+  SPECIALTY
+  SERVICE
+  PROVIDER
+  AVAILABILITY_RULE
+  SCHEDULE_EXCEPTION
+  APPOINTMENT_HOLD
+  APPOINTMENT
+  CONVERSATION
+  NOTIFICATION_RULE
+  HUMAN_SLA_RULE
+  KNOWLEDGE_ARTICLE
+  AI_CONFIGURATION
+  INTEGRATION
+}
+
 model AuthEvent {
+  isBusiness Boolean @default(false) @map("is_business")
+  actorType AuditActorType @default(SYSTEM) @map("actor_type")
+  actorReferenceId String? @map("actor_reference_id") @db.VarChar(128)
+  source AuditSource @default(SYSTEM)
+  resourceType AuditResourceType? @map("resource_type")
+  previousValues Json? @map("previous_values")
+  newValues Json? @map("new_values")
+  metadata Json?
+  correlationId String? @map("correlation_id") @db.Uuid
   resourceId String?       @map("resource_id") @db.Uuid
   changes    Json?
   id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -123,6 +292,13 @@ model AuthEvent {
   user       User?         @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([userId, createdAt])
+  @@index([tenantId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([tenantId, resourceType, resourceId])
+  @@index([tenantId, resourceId, type, createdAt, id])
+  @@index([tenantId, type])
+  @@index([tenantId, userId])
+  @@index([tenantId, source])
+  @@index([correlationId])
   @@map("auth_events")
 }
 
@@ -136,18 +312,22 @@ model AuthThrottle {
 }
 
 model UserTenant {
-  userId                 String           @map("user_id") @db.Uuid
-  tenantId               String           @map("tenant_id") @db.Uuid
+  assignedConversations  Conversation[]
+  sentMessages           Message[]
+  appointments           Appointment[]
+  createdHolds           AppointmentHold[]
+  userId                 String            @map("user_id") @db.Uuid
+  tenantId               String            @map("tenant_id") @db.Uuid
   role                   String
-  roleDefinition         Role             @relation(fields: [role], references: [name], onDelete: Restrict, onUpdate: Restrict)
-  active                 Boolean          @default(true)
-  createdAt              DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt              DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  user                   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant                 Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  roleDefinition         Role              @relation(fields: [role], references: [name], onDelete: Restrict, onUpdate: Restrict)
+  active                 Boolean           @default(true)
+  createdAt              DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user                   User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant                 Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   sessions               AuthSession[]
-  authorizedPatientLinks ContactPatient[] @relation("patient_link_authorizer")
-  revokedPatientLinks    ContactPatient[] @relation("patient_link_revoker")
+  authorizedPatientLinks ContactPatient[]  @relation("patient_link_authorizer")
+  revokedPatientLinks    ContactPatient[]  @relation("patient_link_revoker")
 
   @@id([userId, tenantId])
   @@index([tenantId])
@@ -191,15 +371,20 @@ enum ContactChannelType {
 }
 
 model Contact {
-  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId     String           @map("tenant_id") @db.Uuid
-  displayName  String           @map("display_name")
-  status       ContactStatus    @default(ACTIVE)
-  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  channels     ContactChannel[]
-  patientLinks ContactPatient[]
+  schedulingWorkflows SchedulingWorkflow[]
+  toolExecutions      ToolExecution[]
+  conversations       Conversation[]
+  appointments        Appointment[]
+  appointmentHolds    AppointmentHold[]
+  id                  String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId            String               @map("tenant_id") @db.Uuid
+  displayName         String               @map("display_name")
+  status              ContactStatus        @default(ACTIVE)
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  channels            ContactChannel[]
+  patientLinks        ContactPatient[]
 
   @@unique([tenantId, id])
   @@map("contacts")
@@ -251,24 +436,30 @@ enum PatientAuthorizationLevel {
 }
 
 model Patient {
-  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId          String           @map("tenant_id") @db.Uuid
-  name              String
-  birthDate         DateTime         @map("birth_date") @db.Date
-  document          String?
-  healthPlan        String?          @map("health_plan")
-  paymentPreference String?          @map("payment_preference")
-  notes             String?
-  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  tenant            Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  contacts          ContactPatient[]
+  schedulingWorkflows SchedulingWorkflow[]
+  toolExecutions      ToolExecution[]
+  conversations       Conversation[]
+  appointments        Appointment[]
+  appointmentHolds    AppointmentHold[]
+  id                  String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId            String               @map("tenant_id") @db.Uuid
+  name                String
+  birthDate           DateTime             @map("birth_date") @db.Date
+  document            String?
+  healthPlan          String?              @map("health_plan")
+  paymentPreference   String?              @map("payment_preference")
+  notes               String?
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  contacts            ContactPatient[]
 
   @@unique([tenantId, id])
   @@map("patients")
 }
 
 model ContactPatient {
+  activeConversations Conversation[]
   id                  String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenantId            String                    @map("tenant_id") @db.Uuid
   contactId           String                    @map("contact_id") @db.Uuid
@@ -298,15 +489,16 @@ model ContactPatient {
 }
 
 model Specialty {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId    String    @map("tenant_id") @db.Uuid
-  name        String    @db.VarChar(200)
-  description String?   @db.VarChar(2000)
-  active      Boolean   @default(true)
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  services    Service[]
+  schedulingWorkflows SchedulingWorkflow[]
+  id                  String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId            String               @map("tenant_id") @db.Uuid
+  name                String               @db.VarChar(200)
+  description         String?              @db.VarChar(2000)
+  active              Boolean              @default(true)
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  services            Service[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, name])
@@ -315,23 +507,1165 @@ model Specialty {
 }
 
 model Service {
-  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId            String    @map("tenant_id") @db.Uuid
-  specialtyId         String    @map("specialty_id") @db.Uuid
-  name                String    @db.VarChar(200)
-  description         String?   @db.VarChar(2000)
-  durationMinutes     Int       @map("duration_minutes")
-  bufferBeforeMinutes Int       @default(0) @map("buffer_before_minutes")
-  bufferAfterMinutes  Int       @default(0) @map("buffer_after_minutes")
-  price               Decimal?  @db.Decimal(12, 2)
-  active              Boolean   @default(true)
-  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  specialty           Specialty @relation(fields: [tenantId, specialtyId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  schedulingWorkflows   SchedulingWorkflow[]
+  schedulingSlotOptions SchedulingSlotOption[]
+  appointments          Appointment[]
+  appointmentHolds      AppointmentHold[]
+  providers             ProviderService[]
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId              String                 @map("tenant_id") @db.Uuid
+  specialtyId           String                 @map("specialty_id") @db.Uuid
+  name                  String                 @db.VarChar(200)
+  description           String?                @db.VarChar(2000)
+  durationMinutes       Int                    @map("duration_minutes")
+  bufferBeforeMinutes   Int                    @default(0) @map("buffer_before_minutes")
+  bufferAfterMinutes    Int                    @default(0) @map("buffer_after_minutes")
+  price                 Decimal?               @db.Decimal(12, 2)
+  active                Boolean                @default(true)
+  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  specialty             Specialty              @relation(fields: [tenantId, specialtyId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
 
+  @@unique([tenantId, id])
   @@unique([tenantId, specialtyId, name])
   @@index([tenantId, active])
   @@index([tenantId, specialtyId, active])
   @@map("services")
+}
+
+model Provider {
+  schedulingWorkflows   SchedulingWorkflow[]
+  schedulingSlotOptions SchedulingSlotOption[]
+  appointments          Appointment[]
+  appointmentHolds      AppointmentHold[]
+  availabilityRules     AvailabilityRule[]
+  scheduleExceptions    ScheduleException[]
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId              String                 @map("tenant_id") @db.Uuid
+  name                  String                 @db.VarChar(200)
+  professionalType      String                 @map("professional_type") @db.VarChar(80)
+  registrationNumber    String?                @map("registration_number") @db.VarChar(120)
+  active                Boolean                @default(true)
+  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  services              ProviderService[]
+  units                 ProviderUnit[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, active])
+  @@map("providers")
+}
+
+model ProviderService {
+  appointments            Appointment[]
+  appointmentHolds        AppointmentHold[]
+  id                      String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId                String            @map("tenant_id") @db.Uuid
+  providerId              String            @map("provider_id") @db.Uuid
+  serviceId               String            @map("service_id") @db.Uuid
+  durationOverrideMinutes Int?              @map("duration_override_minutes")
+  priceOverride           Decimal?          @map("price_override") @db.Decimal(12, 2)
+  active                  Boolean           @default(true)
+  createdAt               DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt               DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant                  Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  provider                Provider          @relation(fields: [tenantId, providerId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  service                 Service           @relation(fields: [tenantId, serviceId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, providerId, serviceId])
+  @@index([tenantId, providerId, active])
+  @@index([tenantId, serviceId, active])
+  @@map("provider_services")
+}
+
+model ProviderUnit {
+  appointments       Appointment[]
+  appointmentHolds   AppointmentHold[]
+  availabilityRules  AvailabilityRule[]
+  scheduleExceptions ScheduleException[]
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId           String              @map("tenant_id") @db.Uuid
+  providerId         String              @map("provider_id") @db.Uuid
+  unitId             String              @map("unit_id") @db.Uuid
+  active             Boolean             @default(true)
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  provider           Provider            @relation(fields: [tenantId, providerId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  unit               Unit                @relation(fields: [tenantId, unitId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, providerId, unitId])
+  @@index([tenantId, providerId, active])
+  @@index([tenantId, unitId, active])
+  @@map("provider_units")
+}
+
+enum Weekday {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum ScheduleExceptionType {
+  BLOCK
+  EXTRA_AVAILABILITY
+  VACATION
+  HOLIDAY
+  MEETING
+  OTHER
+}
+
+model AvailabilityRule {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String       @map("tenant_id") @db.Uuid
+  providerId   String       @map("provider_id") @db.Uuid
+  unitId       String       @map("unit_id") @db.Uuid
+  weekday      Weekday
+  startTime    DateTime     @map("start_time") @db.Time(0)
+  endTime      DateTime     @map("end_time") @db.Time(0)
+  validFrom    DateTime     @map("valid_from") @db.Date
+  validUntil   DateTime?    @map("valid_until") @db.Date
+  active       Boolean      @default(true)
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  provider     Provider     @relation(fields: [tenantId, providerId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  unit         Unit         @relation(fields: [tenantId, unitId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  providerUnit ProviderUnit @relation(fields: [tenantId, providerId, unitId], references: [tenantId, providerId, unitId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([tenantId, providerId, unitId, weekday, active])
+  @@index([tenantId, validFrom, validUntil])
+  @@index([tenantId, unitId, active])
+  @@map("availability_rules")
+}
+
+model ScheduleException {
+  id           String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String                @map("tenant_id") @db.Uuid
+  providerId   String                @map("provider_id") @db.Uuid
+  unitId       String                @map("unit_id") @db.Uuid
+  date         DateTime              @db.Date
+  startTime    DateTime?             @map("start_time") @db.Time(0)
+  endTime      DateTime?             @map("end_time") @db.Time(0)
+  type         ScheduleExceptionType
+  reason       String?               @db.VarChar(2000)
+  active       Boolean               @default(true)
+  createdAt    DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  provider     Provider              @relation(fields: [tenantId, providerId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  unit         Unit                  @relation(fields: [tenantId, unitId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  providerUnit ProviderUnit          @relation(fields: [tenantId, providerId, unitId], references: [tenantId, providerId, unitId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([tenantId, providerId, unitId, date, active])
+  @@index([tenantId, date, type, active])
+  @@index([tenantId, unitId, date])
+  @@map("schedule_exceptions")
+}
+
+enum AppointmentHoldStatus {
+  ACTIVE
+  EXPIRED
+  RELEASED
+  CONSUMED
+}
+
+model AppointmentHold {
+  appointment        Appointment?
+  schedulingWorkflow SchedulingWorkflow?
+  id                 String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId           String                @map("tenant_id") @db.Uuid
+  patientId          String                @map("patient_id") @db.Uuid
+  contactId          String?               @map("contact_id") @db.Uuid
+  serviceId          String                @map("service_id") @db.Uuid
+  providerId         String                @map("provider_id") @db.Uuid
+  unitId             String                @map("unit_id") @db.Uuid
+  requestId          String                @map("request_id") @db.Uuid
+  creatorId          String?               @map("creator_id") @db.Uuid
+  createdByType      AppointmentActorType  @default(USER) @map("created_by_type")
+  startAt            DateTime              @map("start_at") @db.Timestamptz(3)
+  endAt              DateTime              @map("end_at") @db.Timestamptz(3)
+  occupiedStartAt    DateTime              @map("occupied_start_at") @db.Timestamptz(3)
+  occupiedEndAt      DateTime              @map("occupied_end_at") @db.Timestamptz(3)
+  expiresAt          DateTime              @map("expires_at") @db.Timestamptz(3)
+  status             AppointmentHoldStatus @default(ACTIVE)
+  createdAt          DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant             Tenant                @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  patient            Patient               @relation(fields: [tenantId, patientId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  contact            Contact?              @relation(fields: [tenantId, contactId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  service            Service               @relation(fields: [tenantId, serviceId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  provider           Provider              @relation(fields: [tenantId, providerId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  unit               Unit                  @relation(fields: [tenantId, unitId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  providerService    ProviderService       @relation(fields: [tenantId, providerId, serviceId], references: [tenantId, providerId, serviceId], onDelete: Restrict, onUpdate: Restrict)
+  providerUnit       ProviderUnit          @relation(fields: [tenantId, providerId, unitId], references: [tenantId, providerId, unitId], onDelete: Restrict, onUpdate: Restrict)
+  creator            UserTenant?           @relation(fields: [creatorId, tenantId], references: [userId, tenantId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, requestId])
+  @@index([tenantId, providerId, unitId, status, occupiedStartAt, occupiedEndAt])
+  @@index([status, expiresAt, tenantId])
+  @@index([tenantId, patientId])
+  @@index([tenantId, serviceId])
+  @@map("appointment_holds")
+}
+
+enum AppointmentStatus {
+  PENDING_CONFIRMATION
+  CONFIRMED
+  CHECKED_IN
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+  RESCHEDULED
+}
+
+enum AppointmentSource {
+  WHATSAPP_AI
+  WHATSAPP_HUMAN
+  WEB
+  PHONE
+  MANUAL
+  IMPORT
+}
+
+enum AppointmentActorType {
+  AI
+  USER
+  SYSTEM
+  IMPORT
+}
+
+enum CalendarSyncStatus {
+  NOT_REQUIRED
+  PENDING
+  SYNCED
+  ERROR
+}
+
+model Appointment {
+  calendarSyncAttempts         CalendarSyncAttempt[]
+  notificationAttempts         NotificationAttempt[]
+  schedulingWorkflow           SchedulingWorkflow?           @relation("WorkflowResultAppointment")
+  targetedWorkflows            SchedulingWorkflow[]          @relation("WorkflowTargetAppointment")
+  schedulingAppointmentOptions SchedulingAppointmentOption[]
+  id                           String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId                     String                        @map("tenant_id") @db.Uuid
+  patientId                    String                        @map("patient_id") @db.Uuid
+  contactId                    String?                       @map("contact_id") @db.Uuid
+  serviceId                    String                        @map("service_id") @db.Uuid
+  providerId                   String                        @map("provider_id") @db.Uuid
+  unitId                       String                        @map("unit_id") @db.Uuid
+  holdId                       String?                       @map("hold_id") @db.Uuid
+  previousAppointmentId        String?                       @map("previous_appointment_id") @db.Uuid
+  createdByType                AppointmentActorType          @map("created_by_type")
+  createdById                  String?                       @map("created_by_id") @db.Uuid
+  startAt                      DateTime                      @map("start_at") @db.Timestamptz(3)
+  endAt                        DateTime                      @map("end_at") @db.Timestamptz(3)
+  occupiedStartAt              DateTime                      @map("occupied_start_at") @db.Timestamptz(3)
+  occupiedEndAt                DateTime                      @map("occupied_end_at") @db.Timestamptz(3)
+  status                       AppointmentStatus             @default(PENDING_CONFIRMATION)
+  source                       AppointmentSource             @default(MANUAL)
+  calendarProvider             String?                       @map("calendar_provider") @db.VarChar(100)
+  externalEventId              String?                       @map("external_event_id") @db.VarChar(500)
+  syncStatus                   CalendarSyncStatus            @default(NOT_REQUIRED) @map("sync_status")
+  calendarSyncRevision         Int                           @default(0) @map("calendar_sync_revision")
+  calendarSyncAttemptsCount    Int                           @default(0) @map("calendar_sync_attempts")
+  calendarSyncErrorCode        String?                       @map("calendar_sync_error_code") @db.VarChar(64)
+  calendarLastSyncedAt         DateTime?                     @map("calendar_last_synced_at") @db.Timestamptz(3)
+  notes                        String?                       @db.VarChar(2000)
+  cancelledAt                  DateTime?                     @map("cancelled_at") @db.Timestamptz(3)
+  cancellationReason           String?                       @map("cancellation_reason") @db.VarChar(1000)
+  createdAt                    DateTime                      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                    DateTime                      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant                       Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  patient                      Patient                       @relation(fields: [tenantId, patientId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  contact                      Contact?                      @relation(fields: [tenantId, contactId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  service                      Service                       @relation(fields: [tenantId, serviceId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  provider                     Provider                      @relation(fields: [tenantId, providerId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  unit                         Unit                          @relation(fields: [tenantId, unitId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  providerService              ProviderService               @relation(fields: [tenantId, providerId, serviceId], references: [tenantId, providerId, serviceId], onDelete: Restrict, onUpdate: Restrict)
+  providerUnit                 ProviderUnit                  @relation(fields: [tenantId, providerId, unitId], references: [tenantId, providerId, unitId], onDelete: Restrict, onUpdate: Restrict)
+  creator                      UserTenant?                   @relation(fields: [createdById, tenantId], references: [userId, tenantId], onDelete: Restrict, onUpdate: Restrict)
+  hold                         AppointmentHold?              @relation(fields: [tenantId, holdId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  previousAppointment          Appointment?                  @relation("Rescheduling", fields: [tenantId, patientId, previousAppointmentId], references: [tenantId, patientId, id], onDelete: Restrict, onUpdate: Restrict)
+  nextAppointment              Appointment?                  @relation("Rescheduling")
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, patientId, id])
+  @@unique([tenantId, patientId, previousAppointmentId])
+  @@unique([tenantId, previousAppointmentId])
+  @@unique([tenantId, holdId])
+  @@unique([tenantId, calendarProvider, externalEventId])
+  @@index([tenantId, providerId, unitId, status, occupiedStartAt, occupiedEndAt])
+  @@index([tenantId, startAt])
+  @@index([tenantId, status, startAt])
+  @@index([tenantId, patientId, startAt])
+  @@index([tenantId, contactId])
+  @@index([tenantId, serviceId])
+  @@index([tenantId, syncStatus])
+  @@index([tenantId, createdAt])
+  @@map("appointments")
+}
+
+enum NotificationType {
+  CONFIRMATION
+  REMINDER
+}
+
+enum OutsideWindowPolicy {
+  PREVIOUS_ALLOWED_TIME
+  NEXT_ALLOWED_TIME
+  SKIP
+}
+
+enum NoResponseAction {
+  NONE
+  MARK_UNCONFIRMED
+  NEEDS_HUMAN
+  CANCEL_APPOINTMENT
+}
+
+model NotificationRule {
+  attempts                     NotificationAttempt[]
+  id                           String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId                     String                @map("tenant_id") @db.Uuid
+  type                         NotificationType
+  offsetMinutes                Int                   @map("offset_minutes")
+  allowedStartTime             DateTime              @map("allowed_start_time") @db.Time(0)
+  allowedEndTime               DateTime              @map("allowed_end_time") @db.Time(0)
+  allowedWeekdays              Weekday[]             @map("allowed_weekdays")
+  outsideWindowPolicy          OutsideWindowPolicy   @map("outside_window_policy")
+  retryEnabled                 Boolean               @default(false) @map("retry_enabled")
+  retryAfterMinutes            Int?                  @map("retry_after_minutes")
+  maxAttempts                  Int                   @default(1) @map("max_attempts")
+  minimumTimeBeforeAppointment Int                   @default(0) @map("minimum_time_before_appointment")
+  actionIfNoResponse           NoResponseAction      @default(NONE) @map("action_if_no_response")
+  active                       Boolean               @default(true)
+  createdAt                    DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                    DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant                       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, type, active])
+  @@index([tenantId, createdAt])
+  @@map("notification_rules")
+}
+
+enum NotificationAttemptStatus {
+  SCHEDULED
+  PROCESSING
+  SENT
+  SKIPPED
+  FAILED
+  CANCELLED
+}
+
+model NotificationAttempt {
+  id                 String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId           String                    @map("tenant_id") @db.Uuid
+  appointmentId      String                    @map("appointment_id") @db.Uuid
+  notificationRuleId String                    @map("notification_rule_id") @db.Uuid
+  messageId          String?                   @map("message_id") @db.Uuid
+  type               NotificationType
+  cycleKey           String                    @map("cycle_key") @db.Char(64)
+  attemptNumber      Int                       @map("attempt_number")
+  scheduledAt        DateTime                  @map("scheduled_at") @db.Timestamptz(3)
+  nextDispatchAt     DateTime                  @map("next_dispatch_at") @db.Timestamptz(3)
+  startedAt          DateTime?                 @map("started_at") @db.Timestamptz(3)
+  sentAt             DateTime?                 @map("sent_at") @db.Timestamptz(3)
+  completedAt        DateTime?                 @map("completed_at") @db.Timestamptz(3)
+  noResponseAt       DateTime?                 @map("no_response_at") @db.Timestamptz(3)
+  status             NotificationAttemptStatus @default(SCHEDULED)
+  providerMessageId  String?                   @map("provider_message_id") @db.VarChar(300)
+  errorCode          String?                   @map("error_code") @db.VarChar(64)
+  outcome            String?                   @db.VarChar(64)
+  correlationId      String                    @map("correlation_id") @db.Uuid
+  createdAt          DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant             Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  appointment        Appointment               @relation(fields: [tenantId, appointmentId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  notificationRule   NotificationRule          @relation(fields: [tenantId, notificationRuleId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  message            Message?                  @relation(fields: [tenantId, messageId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, appointmentId, notificationRuleId, cycleKey, attemptNumber])
+  @@unique([tenantId, messageId])
+  @@index([status, nextDispatchAt, id])
+  @@index([tenantId, appointmentId, status])
+  @@index([tenantId, notificationRuleId, status])
+  @@index([tenantId, scheduledAt])
+  @@index([tenantId, createdAt])
+  @@map("notification_attempts")
+}
+
+enum ConversationChannel {
+  WHATSAPP
+}
+
+enum ConversationStatus {
+  AI_ACTIVE
+  WAITING_PATIENT
+  NEEDS_HUMAN
+  HUMAN_ACTIVE
+  RESOLVED
+  CLOSED
+}
+
+enum ConversationIntent {
+  SCHEDULING
+  RESCHEDULING
+  CANCELLATION
+  CONFIRMATION
+  INFORMATION
+  PAYMENT
+  COMPLAINT
+  CLINICAL_QUESTION
+  OTHER
+}
+
+enum HandoffReason {
+  USER_REQUESTED_HUMAN
+  AI_LOW_CONFIDENCE
+  PAYMENT_NEGOTIATION
+  COMPLAINT
+  CLINICAL_QUESTION
+  AUTHORIZATION_PROBLEM
+  SCHEDULING_CONFLICT
+  SYSTEM_ERROR
+  OTHER
+}
+
+enum MessageSenderType {
+  PATIENT
+  AI
+  USER
+  SYSTEM
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  AUDIO
+  DOCUMENT
+  LOCATION
+  CONTACT
+  INTERACTIVE
+}
+
+model Conversation {
+  schedulingWorkflow SchedulingWorkflow?
+  aiProcessingRuns   AIProcessingRun[]
+  engineLease        ConversationEngineLease?
+  toolExecutions     ToolExecution[]
+  integrationId      String?                  @map("integration_id") @db.Uuid
+  integration        Integration?             @relation(fields: [tenantId, integrationId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  slaLevel           HumanSlaLevel            @default(NONE) @map("sla_level")
+  humanSlaCycles     HumanSlaCycle[]
+  id                 String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId           String                   @map("tenant_id") @db.Uuid
+  contactId          String                   @map("contact_id") @db.Uuid
+  activePatientId    String?                  @map("active_patient_id") @db.Uuid
+  channel            ConversationChannel      @default(WHATSAPP)
+  status             ConversationStatus       @default(AI_ACTIVE)
+  intent             ConversationIntent       @default(OTHER)
+  assignedUserId     String?                  @map("assigned_user_id") @db.Uuid
+  handoffReason      HandoffReason?           @map("handoff_reason")
+  handoffRequestedAt DateTime?                @map("handoff_requested_at") @db.Timestamptz(3)
+  assignedAt         DateTime?                @map("assigned_at") @db.Timestamptz(3)
+  resolvedAt         DateTime?                @map("resolved_at") @db.Timestamptz(3)
+  lastMessageAt      DateTime?                @map("last_message_at") @db.Timestamptz(3)
+  aiSummary          String?                  @map("ai_summary") @db.VarChar(2000)
+  aiSummaryUpdatedAt DateTime?                @map("ai_summary_updated_at") @db.Timestamptz(3)
+  createdAt          DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant             Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  contact            Contact                  @relation(fields: [tenantId, contactId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  activePatient      Patient?                 @relation(fields: [tenantId, activePatientId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  activePatientLink  ContactPatient?          @relation(fields: [tenantId, contactId, activePatientId], references: [tenantId, contactId, patientId], onDelete: Restrict, onUpdate: Restrict)
+  assignedUser       UserTenant?              @relation(fields: [assignedUserId, tenantId], references: [userId, tenantId], onDelete: Restrict, onUpdate: Restrict)
+  messages           Message[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, id, channel])
+  @@unique([tenantId, id, contactId])
+  @@index([tenantId, contactId, status])
+  @@index([tenantId, activePatientId, status])
+  @@index([tenantId, assignedUserId, status])
+  @@index([tenantId, intent, status])
+  @@index([tenantId, channel, lastMessageAt])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status, handoffRequestedAt, id], map: "conversations_human_queue_idx")
+  @@map("conversations")
+}
+
+enum SchedulingWorkflowStep {
+  IDENTIFY_PATIENT
+  IDENTIFY_APPOINTMENT
+  IDENTIFY_SERVICE
+  COLLECT_PREFERENCES
+  COLLECT_NEW_PREFERENCES
+  SEARCH_SLOTS
+  SEARCH_NEW_SLOTS
+  SELECT_SLOT
+  SELECT_NEW_SLOT
+  WAITING_CONFIRMATION
+  WAITING_CANCELLATION_CONFIRMATION
+  WAITING_RESCHEDULE_CONFIRMATION
+  APPOINTMENT_CREATED
+  COMPLETED
+  ABANDONED
+  FAILED
+  NEEDS_HUMAN
+  EXPIRED
+}
+
+enum SchedulingWorkflowType {
+  SCHEDULING
+  CANCELLATION
+  RESCHEDULING
+}
+
+enum SchedulingPeriod {
+  MORNING
+  AFTERNOON
+  EVENING
+  ANY
+}
+
+model SchedulingWorkflow {
+  id                  String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId            String                        @map("tenant_id") @db.Uuid
+  conversationId      String                        @map("conversation_id") @db.Uuid
+  contactId           String                        @map("contact_id") @db.Uuid
+  workflowType        SchedulingWorkflowType        @default(SCHEDULING) @map("workflow_type")
+  patientId           String?                       @map("patient_id") @db.Uuid
+  specialtyId         String?                       @map("specialty_id") @db.Uuid
+  serviceId           String?                       @map("service_id") @db.Uuid
+  providerId          String?                       @map("provider_id") @db.Uuid
+  unitId              String?                       @map("unit_id") @db.Uuid
+  preferredDate       DateTime?                     @map("preferred_date") @db.Date
+  preferredPeriod     SchedulingPeriod?             @map("preferred_period")
+  holdId              String?                       @map("hold_id") @db.Uuid
+  targetAppointmentId String?                       @map("target_appointment_id") @db.Uuid
+  appointmentId       String?                       @map("appointment_id") @db.Uuid
+  step                SchedulingWorkflowStep        @default(IDENTIFY_PATIENT)
+  version             Int                           @default(1)
+  expiresAt           DateTime                      @map("expires_at") @db.Timestamptz(3)
+  createdAt           DateTime                      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime                      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant              Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  conversation        Conversation                  @relation(fields: [tenantId, conversationId, contactId], references: [tenantId, id, contactId], onDelete: Restrict, onUpdate: Restrict)
+  contact             Contact                       @relation(fields: [tenantId, contactId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  patient             Patient?                      @relation(fields: [tenantId, patientId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  specialty           Specialty?                    @relation(fields: [tenantId, specialtyId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  service             Service?                      @relation(fields: [tenantId, serviceId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  provider            Provider?                     @relation(fields: [tenantId, providerId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  unit                Unit?                         @relation(fields: [tenantId, unitId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  hold                AppointmentHold?              @relation(fields: [tenantId, holdId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  targetAppointment   Appointment?                  @relation("WorkflowTargetAppointment", fields: [tenantId, targetAppointmentId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  appointment         Appointment?                  @relation("WorkflowResultAppointment", fields: [tenantId, appointmentId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  options             SchedulingSlotOption[]
+  appointmentOptions  SchedulingAppointmentOption[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, conversationId])
+  @@unique([tenantId, conversationId, contactId])
+  @@unique([tenantId, holdId])
+  @@unique([tenantId, appointmentId])
+  @@index([tenantId, workflowType, step, expiresAt])
+  @@index([tenantId, targetAppointmentId])
+  @@index([tenantId, patientId])
+  @@index([tenantId, serviceId])
+  @@map("scheduling_workflows")
+}
+
+model SchedulingAppointmentOption {
+  id            String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String             @map("tenant_id") @db.Uuid
+  workflowId    String             @map("workflow_id") @db.Uuid
+  optionNumber  Int                @map("option_number")
+  appointmentId String             @map("appointment_id") @db.Uuid
+  expiresAt     DateTime           @map("expires_at") @db.Timestamptz(3)
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  tenant        Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  workflow      SchedulingWorkflow @relation(fields: [tenantId, workflowId], references: [tenantId, id], onDelete: Cascade, onUpdate: Restrict)
+  appointment   Appointment        @relation(fields: [tenantId, appointmentId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, workflowId, optionNumber])
+  @@unique([tenantId, workflowId, appointmentId])
+  @@index([tenantId, workflowId, expiresAt])
+  @@index([tenantId, appointmentId])
+  @@map("scheduling_appointment_options")
+}
+
+model SchedulingSlotOption {
+  id           String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String             @map("tenant_id") @db.Uuid
+  workflowId   String             @map("workflow_id") @db.Uuid
+  optionNumber Int                @map("option_number")
+  serviceId    String             @map("service_id") @db.Uuid
+  providerId   String             @map("provider_id") @db.Uuid
+  unitId       String             @map("unit_id") @db.Uuid
+  startAt      DateTime           @map("start_at") @db.Timestamptz(3)
+  endAt        DateTime           @map("end_at") @db.Timestamptz(3)
+  timezone     String             @db.VarChar(100)
+  expiresAt    DateTime           @map("expires_at") @db.Timestamptz(3)
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  tenant       Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  workflow     SchedulingWorkflow @relation(fields: [tenantId, workflowId], references: [tenantId, id], onDelete: Cascade, onUpdate: Restrict)
+  service      Service            @relation(fields: [tenantId, serviceId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  provider     Provider           @relation(fields: [tenantId, providerId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  unit         Unit               @relation(fields: [tenantId, unitId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, workflowId, optionNumber])
+  @@index([tenantId, workflowId, expiresAt])
+  @@index([tenantId, providerId, unitId, startAt])
+  @@map("scheduling_slot_options")
+}
+
+model Message {
+  notificationAttempt   NotificationAttempt?
+  inboundProcessingRun  AIProcessingRun?      @relation("InboundProcessingMessage")
+  responseProcessingRun AIProcessingRun?      @relation("ResponseProcessingMessage")
+  integrationId         String?               @map("integration_id") @db.Uuid
+  integration           Integration?          @relation(fields: [tenantId, integrationId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  requestId             String?               @map("request_id") @db.Uuid
+  deliveryStatus        MessageDeliveryStatus @default(LOCAL) @map("delivery_status")
+  recipientAddress      String?               @map("recipient_address") @db.VarChar(16)
+  sendAttempts          Int                   @default(0) @map("send_attempts")
+  nextAttemptAt         DateTime?             @map("next_attempt_at") @db.Timestamptz(3)
+  sendingAt             DateTime?             @map("sending_at") @db.Timestamptz(3)
+  sentAt                DateTime?             @map("sent_at") @db.Timestamptz(3)
+  errorCode             String?               @map("error_code") @db.VarChar(64)
+  id                    String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId              String                @map("tenant_id") @db.Uuid
+  conversationId        String                @map("conversation_id") @db.Uuid
+  channel               ConversationChannel
+  providerMessageId     String?               @map("provider_message_id") @db.VarChar(300)
+  senderType            MessageSenderType     @map("sender_type")
+  senderUserId          String?               @map("sender_user_id") @db.Uuid
+  messageType           MessageType           @map("message_type")
+  content               String                @default("") @db.VarChar(4000)
+  metadata              Json?                 @db.JsonB
+  createdAt             DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  deliveredAt           DateTime?             @map("delivered_at") @db.Timestamptz(3)
+  readAt                DateTime?             @map("read_at") @db.Timestamptz(3)
+  tenant                Tenant                @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  conversation          Conversation          @relation(fields: [tenantId, conversationId, channel], references: [tenantId, id, channel], onDelete: Restrict, onUpdate: Restrict)
+  senderUser            UserTenant?           @relation(fields: [senderUserId, tenantId], references: [userId, tenantId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, conversationId, id])
+  @@unique([tenantId, integrationId, providerMessageId])
+  @@unique([tenantId, senderUserId, requestId])
+  @@index([deliveryStatus, nextAttemptAt, id])
+  @@index([tenantId, conversationId, createdAt, id])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, senderType, createdAt])
+  @@map("messages")
+}
+
+enum AIProcessingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+model AIProcessingRun {
+  aiConfigurationVersionId String?                 @map("ai_configuration_version_id") @db.Uuid
+  id                       String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId                 String                  @map("tenant_id") @db.Uuid
+  conversationId           String                  @map("conversation_id") @db.Uuid
+  inboundMessageId         String                  @map("inbound_message_id") @db.Uuid
+  responseMessageId        String?                 @map("response_message_id") @db.Uuid
+  correlationId            String                  @map("correlation_id") @db.Uuid
+  status                   AIProcessingStatus      @default(PENDING)
+  attempts                 Int                     @default(0)
+  toolCalls                Int                     @default(0) @map("tool_calls")
+  errorCode                String?                 @map("error_code") @db.VarChar(64)
+  startedAt                DateTime?               @map("started_at") @db.Timestamptz(3)
+  completedAt              DateTime?               @map("completed_at") @db.Timestamptz(3)
+  nextDispatchAt           DateTime                @default(now()) @map("next_dispatch_at") @db.Timestamptz(3)
+  createdAt                DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant                   Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  conversation             Conversation            @relation(fields: [tenantId, conversationId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  inboundMessage           Message                 @relation("InboundProcessingMessage", fields: [tenantId, conversationId, inboundMessageId], references: [tenantId, conversationId, id], onDelete: Restrict, onUpdate: Restrict)
+  responseMessage          Message?                @relation("ResponseProcessingMessage", fields: [tenantId, conversationId, responseMessageId], references: [tenantId, conversationId, id], onDelete: Restrict, onUpdate: Restrict)
+  aiConfigurationVersion   AIConfigurationVersion? @relation(fields: [tenantId, aiConfigurationVersionId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, inboundMessageId])
+  @@unique([tenantId, responseMessageId])
+  @@unique([tenantId, conversationId, inboundMessageId])
+  @@unique([tenantId, conversationId, responseMessageId])
+  @@index([status, nextDispatchAt, createdAt, id])
+  @@index([tenantId, conversationId, status, createdAt, id])
+  @@index([tenantId, aiConfigurationVersionId])
+  @@map("ai_processing_runs")
+}
+
+model ConversationEngineLease {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String       @map("tenant_id") @db.Uuid
+  conversationId String       @map("conversation_id") @db.Uuid
+  ownerId        String       @map("owner_id") @db.Uuid
+  expiresAt      DateTime     @map("expires_at") @db.Timestamptz(3)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  conversation   Conversation @relation(fields: [tenantId, conversationId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, conversationId])
+  @@index([expiresAt])
+  @@map("conversation_engine_leases")
+}
+
+enum HumanSlaLevel {
+  NONE
+  FIRST
+  SECOND
+  EXTERNAL
+}
+
+model HumanSlaRule {
+  id                   String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId             String          @unique @map("tenant_id") @db.Uuid
+  firstAlertMinutes    Int             @map("first_alert_minutes")
+  secondAlertMinutes   Int             @map("second_alert_minutes")
+  externalAlertMinutes Int?            @map("external_alert_minutes")
+  internalAlertEnabled Boolean         @map("internal_alert_enabled")
+  externalAlertEnabled Boolean         @map("external_alert_enabled")
+  active               Boolean         @default(true)
+  createdAt            DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant               Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  cycles               HumanSlaCycle[]
+
+  @@unique([tenantId, id])
+  @@map("human_sla_rules")
+}
+
+model HumanSlaCycle {
+  id                   String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId             String        @map("tenant_id") @db.Uuid
+  conversationId       String        @map("conversation_id") @db.Uuid
+  ruleId               String        @map("rule_id") @db.Uuid
+  requestedAt          DateTime      @map("requested_at") @db.Timestamptz(3)
+  endedAt              DateTime?     @map("ended_at") @db.Timestamptz(3)
+  claimedAt            DateTime?     @map("claimed_at") @db.Timestamptz(3)
+  firstAlertMinutes    Int           @map("first_alert_minutes")
+  secondAlertMinutes   Int           @map("second_alert_minutes")
+  externalAlertMinutes Int?          @map("external_alert_minutes")
+  internalAlertEnabled Boolean       @map("internal_alert_enabled")
+  externalAlertEnabled Boolean       @map("external_alert_enabled")
+  createdAt            DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  tenant               Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  conversation         Conversation  @relation(fields: [tenantId, conversationId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  rule                 HumanSlaRule  @relation(fields: [tenantId, ruleId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  jobs                 HumanSlaJob[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, claimedAt])
+  @@index([tenantId, conversationId, endedAt])
+  @@map("human_sla_cycles")
+}
+
+model HumanSlaJob {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String        @map("tenant_id") @db.Uuid
+  cycleId        String        @map("cycle_id") @db.Uuid
+  level          HumanSlaLevel
+  dueAt          DateTime      @map("due_at") @db.Timestamptz(3)
+  nextDispatchAt DateTime      @default(now()) @map("next_dispatch_at") @db.Timestamptz(3)
+  processedAt    DateTime?     @map("processed_at") @db.Timestamptz(3)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  cycle          HumanSlaCycle @relation(fields: [tenantId, cycleId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, cycleId, level])
+  @@index([processedAt, nextDispatchAt, id])
+  @@map("human_sla_jobs")
+}
+
+enum IntegrationStatus {
+  ACTIVE
+  DEGRADED
+  ERROR
+  DISABLED
+}
+
+enum IntegrationType {
+  WHATSAPP
+}
+
+enum IntegrationProvider {
+  WHATSAPP_CLOUD
+}
+
+enum CalendarProviderType {
+  GOOGLE_CALENDAR
+}
+
+enum CalendarSyncOperation {
+  UPSERT
+  CANCEL
+}
+
+enum CalendarSyncAttemptStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  RETRYABLE_ERROR
+  PERMANENT_ERROR
+  OBSOLETE
+}
+
+model CalendarIntegration {
+  id                   String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId             String               @unique @map("tenant_id") @db.Uuid
+  provider             CalendarProviderType @default(GOOGLE_CALENDAR)
+  calendarId           String               @map("calendar_id") @db.VarChar(512)
+  credentialsReference String               @map("credentials_reference") @db.VarChar(96)
+  status               IntegrationStatus    @default(ACTIVE)
+  lastTestedAt         DateTime?            @map("last_tested_at") @db.Timestamptz(3)
+  lastErrorCode        String?              @map("last_error_code") @db.VarChar(64)
+  createdAt            DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant               Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([status, provider])
+  @@map("calendar_integrations")
+}
+
+model CalendarSyncAttempt {
+  id             String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String                    @map("tenant_id") @db.Uuid
+  appointmentId  String                    @map("appointment_id") @db.Uuid
+  revision       Int
+  operation      CalendarSyncOperation
+  status         CalendarSyncAttemptStatus @default(PENDING)
+  attemptCount   Int                       @default(0) @map("attempt_count")
+  correlationId  String                    @map("correlation_id") @db.Uuid
+  nextAttemptAt  DateTime                  @default(now()) @map("next_attempt_at") @db.Timestamptz(3)
+  errorCode      String?                   @map("error_code") @db.VarChar(64)
+  startedAt      DateTime?                 @map("started_at") @db.Timestamptz(3)
+  completedAt    DateTime?                 @map("completed_at") @db.Timestamptz(3)
+  createdAt      DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant         Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  appointment    Appointment               @relation(fields: [tenantId, appointmentId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, appointmentId, revision])
+  @@index([status, nextAttemptAt, id])
+  @@index([tenantId, appointmentId, createdAt])
+  @@map("calendar_sync_attempts")
+}
+
+enum MessageDeliveryStatus {
+  LOCAL
+  RECEIVED
+  PENDING
+  SENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+model Integration {
+  id                   String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId             String              @map("tenant_id") @db.Uuid
+  tenant               Tenant              @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  type                 IntegrationType     @default(WHATSAPP)
+  provider             IntegrationProvider @default(WHATSAPP_CLOUD)
+  phoneNumberId        String              @map("phone_number_id") @db.VarChar(32)
+  externalAccountId    String              @map("external_account_id") @db.VarChar(32)
+  status               IntegrationStatus   @default(ACTIVE)
+  credentialsReference String              @map("credentials_reference") @db.VarChar(96)
+  settings             Json?               @db.JsonB
+  createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  conversations        Conversation[]
+  messages             Message[]
+
+  @@unique([tenantId, id])
+  @@unique([provider, phoneNumberId])
+  @@index([tenantId, type, status])
+  @@map("integrations")
+}
+
+// Technical metadata only; no prompt, output, key or patient identifiers.
+model AIUsage {
+  aiConfigurationVersionId String?                 @map("ai_configuration_version_id") @db.Uuid
+  id                       String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId                 String                  @map("tenant_id") @db.Uuid
+  tenant                   Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  aiConfigurationVersion   AIConfigurationVersion? @relation(fields: [tenantId, aiConfigurationVersionId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  provider                 String                  @db.VarChar(32)
+  model                    String                  @db.VarChar(128)
+  status                   String                  @default("PENDING") @db.VarChar(16)
+  inputTokens              Int?                    @map("input_tokens")
+  outputTokens             Int?                    @map("output_tokens")
+  totalTokens              Int?                    @map("total_tokens")
+  estimatedCost            Decimal?                @map("estimated_cost") @db.Decimal(20, 10)
+  latencyMs                Int?                    @map("latency_ms")
+  attempts                 Int                     @default(0)
+  errorCode                String?                 @map("error_code") @db.VarChar(40)
+  correlationId            String                  @map("correlation_id") @db.Uuid
+  providerRequestId        String?                 @map("provider_request_id") @db.VarChar(200)
+  createdAt                DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  completedAt              DateTime?               @map("completed_at") @db.Timestamptz(3)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, correlationId])
+  @@index([provider, model, createdAt])
+  @@index([tenantId, aiConfigurationVersionId])
+  @@map("ai_usage")
+}
+
+model ToolExecution {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String       @map("tenant_id") @db.Uuid
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  conversationId String       @map("conversation_id") @db.Uuid
+  conversation   Conversation @relation(fields: [tenantId, conversationId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  contact        Contact      @relation(fields: [tenantId, contactId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  patient        Patient?     @relation(fields: [tenantId, patientId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  contactId      String       @map("contact_id") @db.Uuid
+  patientId      String?      @map("patient_id") @db.Uuid
+  actorType      String       @map("actor_type") @db.VarChar(8)
+  actorId        String       @map("actor_id") @db.Uuid
+  correlationId  String       @map("correlation_id") @db.Uuid
+  toolName       String       @map("tool_name") @db.VarChar(64)
+  callId         String       @map("call_id") @db.VarChar(100)
+  inputHash      String       @map("input_hash") @db.Char(64)
+  status         String       @default("RUNNING") @db.VarChar(16)
+  result         Json?
+  errorCode      String?      @map("error_code") @db.VarChar(40)
+  targetId       String?      @map("target_id") @db.Uuid
+  durationMs     Int?         @map("duration_ms")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  completedAt    DateTime?    @map("completed_at") @db.Timestamptz(3)
+
+  @@unique([tenantId, conversationId, callId])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, correlationId])
+  @@map("tool_executions")
+}
+
+enum KnowledgeArticleStatus {
+  DRAFT
+  PUBLISHED
+  INACTIVE
+}
+
+enum KnowledgeCategory {
+  GENERAL
+  LOCATION
+  HOURS
+  SERVICES
+  SPECIALTIES
+  PAYMENT
+  INSURANCE
+  CANCELLATION_POLICY
+  APPOINTMENT_PREPARATION
+  DOCUMENTS
+  ACCESSIBILITY
+  CLINICAL_APPROVED
+  FAQ
+  OTHER
+}
+
+enum KnowledgeSourceType {
+  MANUAL
+  POLICY
+  WEBSITE
+  OTHER
+}
+
+model KnowledgeArticle {
+  id              String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String                    @map("tenant_id") @db.Uuid
+  unitId          String?                   @map("unit_id") @db.Uuid
+  slug            String?                   @db.VarChar(160)
+  status          KnowledgeArticleStatus    @default(DRAFT)
+  createdByUserId String                    @map("created_by_user_id") @db.Uuid
+  updatedByUserId String                    @map("updated_by_user_id") @db.Uuid
+  createdAt       DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant          Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  unit            Unit?                     @relation(fields: [tenantId, unitId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy       User                      @relation("KnowledgeArticleCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  updatedBy       User                      @relation("KnowledgeArticleUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  versions        KnowledgeArticleVersion[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, slug])
+  @@index([tenantId, status])
+  @@index([tenantId, unitId, status])
+  @@map("knowledge_articles")
+}
+
+model KnowledgeArticleVersion {
+  id                String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String                 @map("tenant_id") @db.Uuid
+  articleId         String                 @map("article_id") @db.Uuid
+  version           Int
+  title             String                 @db.VarChar(200)
+  category          KnowledgeCategory
+  content           String                 @db.Text
+  tags              String[]               @default([])
+  sourceType        KnowledgeSourceType    @default(MANUAL) @map("source_type")
+  validFrom         DateTime?              @map("valid_from") @db.Timestamptz(3)
+  validUntil        DateTime?              @map("valid_until") @db.Timestamptz(3)
+  status            KnowledgeArticleStatus @default(DRAFT)
+  createdByUserId   String                 @map("created_by_user_id") @db.Uuid
+  updatedByUserId   String                 @map("updated_by_user_id") @db.Uuid
+  publishedByUserId String?                @map("published_by_user_id") @db.Uuid
+  publishedAt       DateTime?              @map("published_at") @db.Timestamptz(3)
+  createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant            Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  article           KnowledgeArticle       @relation(fields: [tenantId, articleId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy         User                   @relation("KnowledgeVersionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  updatedBy         User                   @relation("KnowledgeVersionUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  publishedBy       User?                  @relation("KnowledgeVersionPublishedBy", fields: [publishedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, articleId, version])
+  @@index([tenantId, articleId, status])
+  @@index([tenantId, status, category, publishedAt])
+  @@index([tenantId, validFrom, validUntil])
+  @@map("knowledge_article_versions")
+}
+
+enum AIConfigurationVersionStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AITone {
+  PROFESSIONAL
+  FRIENDLY
+  CONCISE
+  WARM
+  FORMAL
+  CUSTOM
+}
+
+enum AICapability {
+  SCHEDULING
+  RESCHEDULING
+  CANCELLATION
+  KNOWLEDGE
+  HANDOFF
+}
+
+enum AIContentTopic {
+  SCHEDULING
+  RESCHEDULING
+  CANCELLATION
+  CLINIC_INFORMATION
+  INSURANCE_INFORMATION
+  PAYMENT_INFORMATION
+  APPOINTMENT_PREPARATION
+}
+
+model AIConfiguration {
+  id              String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String                   @unique @map("tenant_id") @db.Uuid
+  activeVersionId String?                  @map("active_version_id") @db.Uuid
+  createdAt       DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant          Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  versions        AIConfigurationVersion[] @relation("AIConfigurationVersions")
+  activeVersion   AIConfigurationVersion?  @relation("AIConfigurationActiveVersion", fields: [tenantId, activeVersionId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, activeVersionId])
+  @@map("ai_configurations")
+}
+
+model AIConfigurationVersion {
+  id                        String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId                  String                       @map("tenant_id") @db.Uuid
+  configurationId           String                       @map("configuration_id") @db.Uuid
+  versionNumber             Int                          @map("version_number")
+  status                    AIConfigurationVersionStatus @default(DRAFT)
+  assistantName             String                       @map("assistant_name") @db.VarChar(80)
+  tone                      AITone                       @default(PROFESSIONAL)
+  customTone                String?                      @map("custom_tone") @db.VarChar(500)
+  greeting                  String                       @db.VarChar(500)
+  systemInstructions        String                       @map("system_instructions") @db.VarChar(4000)
+  allowedContent            AIContentTopic[]             @map("allowed_content")
+  enabledCapabilities       AICapability[]               @map("enabled_capabilities")
+  knowledgeEnabled          Boolean                      @default(true) @map("knowledge_enabled")
+  handoffPaymentNegotiation Boolean                      @default(true) @map("handoff_payment_negotiation")
+  handoffKnowledgeMiss      Boolean                      @default(true) @map("handoff_knowledge_miss")
+  model                     String                       @db.VarChar(128)
+  temperature               Decimal?                     @db.Decimal(3, 2)
+  maxOutputTokens           Int                          @map("max_output_tokens")
+  confidenceThreshold       Decimal                      @map("confidence_threshold") @db.Decimal(3, 2)
+  basedOnVersionId          String?                      @map("based_on_version_id") @db.Uuid
+  createdByUserId           String                       @map("created_by_user_id") @db.Uuid
+  updatedByUserId           String                       @map("updated_by_user_id") @db.Uuid
+  publishedByUserId         String?                      @map("published_by_user_id") @db.Uuid
+  publishedAt               DateTime?                    @map("published_at") @db.Timestamptz(3)
+  createdAt                 DateTime                     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                 DateTime                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant                    Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  configuration             AIConfiguration              @relation("AIConfigurationVersions", fields: [tenantId, configurationId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  activeFor                 AIConfiguration[]            @relation("AIConfigurationActiveVersion")
+  basedOn                   AIConfigurationVersion?      @relation("AIConfigurationVersionLineage", fields: [tenantId, basedOnVersionId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  derivedVersions           AIConfigurationVersion[]     @relation("AIConfigurationVersionLineage")
+  createdBy                 User                         @relation("AIConfigVersionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  updatedBy                 User                         @relation("AIConfigVersionUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  publishedBy               User?                        @relation("AIConfigVersionPublishedBy", fields: [publishedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  processingRuns            AIProcessingRun[]
+  usages                    AIUsage[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, configurationId, versionNumber])
+  @@index([tenantId, configurationId, status])
+  @@index([tenantId, publishedAt])
+  @@index([tenantId, basedOnVersionId])
+  @@map("ai_configuration_versions")
+}
+
+
+// Global capability: never inferred from UserTenant.role.
+model PlatformAdmin {
+  userId String @id @map("user_id") @db.Uuid
+  active Boolean @default(true)
+  encryptedSecret String? @map("encrypted_secret")
+  enrolledAt DateTime? @map("enrolled_at") @db.Timestamptz(3)
+  lastStep BigInt @default(-1) @map("last_step")
+  inviteHash String? @unique @map("invite_hash") @db.Char(64)
+  inviteExpiresAt DateTime? @map("invite_expires_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  @@map("platform_admins")
+}
+model PlatformSession {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  tokenHash String @unique @map("token_hash") @db.Char(64)
+  verifiedAt DateTime @default(now()) @map("verified_at") @db.Timestamptz(3)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  @@index([userId, expiresAt])
+  @@map("platform_sessions")
 }

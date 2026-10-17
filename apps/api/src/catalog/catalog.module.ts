@@ -15,6 +15,7 @@ import { ServicesController } from './services.controller';
     SpecialtiesService,
     ServicesService,
   ],
+  exports: [SpecialtiesService, ServicesService],
   controllers: [SpecialtiesController, ServicesController],
 })
 export class CatalogModule {}

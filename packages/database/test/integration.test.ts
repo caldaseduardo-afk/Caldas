@@ -7,6 +7,7 @@ import {
   DEVELOPMENT_UNIT_ID,
   seedDevelopment,
 } from '../src/development-seed';
+import './calendar.integration';
 
 const connectionString = process.env.TEST_DATABASE_URL;
 if (
@@ -125,22 +126,22 @@ test('catálogo RBAC: seed idempotente, associações e integridade referencial'
     await seedRbac(client);
     await seedRbac(client);
     assert.deepEqual(await snapshot(), before);
-    assert.equal(before.permissions.length, 22);
+    assert.equal(before.permissions.length, 28);
     assert.deepEqual(
       before.roles.filter((r) => r.enabled).map((r) => r.name),
       ['AGENT', 'CLINIC_ADMIN', 'DOCTOR'],
     );
     assert.equal(
       before.associations.filter((r) => r.roleName === 'CLINIC_ADMIN').length,
-      22,
+      28,
     );
     assert.equal(
       before.associations.filter((r) => r.roleName === 'AGENT').length,
-      15,
+      16,
     );
     assert.equal(
       before.associations.filter((r) => r.roleName === 'DOCTOR').length,
-      4,
+      5,
     );
     assert.equal(
       before.associations.filter((r) =>

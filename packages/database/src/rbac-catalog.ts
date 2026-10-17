@@ -1,5 +1,6 @@
 // Catálogo do backend. Não substitui escopo de tenant/unidade/paciente.
 export const PERMISSIONS = [
+  'audit.view',
   'tenant.view',
   'unit.view',
   'contact.view',
@@ -22,6 +23,11 @@ export const PERMISSIONS = [
   'settings.manage',
   'analytics.view',
   'billing.view',
+  'knowledge.view',
+  'knowledge.manage',
+  'knowledge.publish',
+  'settings.view',
+  'ai_config.publish',
 ] as const;
 export type PermissionName = (typeof PERMISSIONS)[number];
 export const ROLES = [
@@ -54,8 +60,15 @@ export const ROLE_PERMISSIONS: Record<
     'appointment.create',
     'appointment.reschedule',
     'appointment.cancel',
+    'knowledge.view',
   ],
-  DOCTOR: ['tenant.view', 'unit.view', 'patient.view', 'appointment.view'],
+  DOCTOR: [
+    'tenant.view',
+    'unit.view',
+    'patient.view',
+    'appointment.view',
+    'knowledge.view',
+  ],
   SUPER_ADMIN: [],
   MANAGER: [],
 };

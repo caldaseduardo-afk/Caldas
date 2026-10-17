@@ -34,5 +34,6 @@
     "eslint.config.mjs",
     "packages/config/*.json",
     "packages/config/*.mjs"
-  ]
+  ],
+  "globalEnv": ["API_INTERNAL_URL"]
 }

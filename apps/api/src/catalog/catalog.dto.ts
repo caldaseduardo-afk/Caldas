@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { fields, textField } from '../configuration/dto';
+import { fields, textField, moneyField } from '../configuration/dto';
 
 export interface SpecialtyDto {
   name: string;
@@ -77,20 +77,7 @@ export function updateServiceDto(body: unknown): Partial<ServiceDto> {
       throw new BadRequestException('Minutos inválidos.');
     dto[key] = value;
   }
-  if ('price' in input) {
-    if (input.price === null) dto.price = null;
-    else {
-      if (
-        typeof input.price !== 'string' ||
-        !/^(0|[1-9][0-9]{0,9})(\.[0-9]{1,2})?$/.test(input.price)
-      )
-        throw new BadRequestException(
-          'Preço deve ser string decimal não negativa com até duas casas.',
-        );
-      const [whole, fraction = ''] = input.price.split('.');
-      dto.price = `${whole}.${fraction.padEnd(2, '0')}`;
-    }
-  }
+  if ('price' in input) dto.price = moneyField(input.price);
   return dto;
 }
 export function createServiceDto(body: unknown): ServiceDto {

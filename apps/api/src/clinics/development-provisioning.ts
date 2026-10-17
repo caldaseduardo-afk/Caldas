@@ -1,3 +1,4 @@
+import { recordAudit } from '@atendente/database';
 import type { createDatabaseClient } from '@atendente/database';
 import { normalizeEmail } from '../auth/auth.input';
 import { createClinicDto } from './clinic.dto';
@@ -39,11 +40,10 @@ export async function provisionDevelopmentClinic(
           memberships: { create: { userId: user.id, role: 'CLINIC_ADMIN' } },
         },
       });
-      await tx.authEvent.create({
+      await recordAudit(tx, {
         data: {
           type: 'TENANT_CREATED',
           tenantId: tenant.id,
-          userId: user.id,
           resourceId: tenant.id,
           changes: {
             source: 'development-provisioning',
@@ -51,11 +51,11 @@ export async function provisionDevelopmentClinic(
           },
         },
       });
-      await tx.authEvent.create({
+      await recordAudit(tx, {
         data: {
           type: 'TENANT_MEMBERSHIP_GRANTED',
+          resourceId: user.id,
           tenantId: tenant.id,
-          userId: user.id,
           changes: { source: 'development-provisioning', role: 'CLINIC_ADMIN' },
         },
       });

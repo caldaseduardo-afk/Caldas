@@ -114,7 +114,8 @@ A agenda suporta:
 
 ## 8. Estados de consulta
 
-- HOLD
+HOLD é uma reserva temporária na entidade AppointmentHold, não um estado de Appointment.
+
 - PENDING_CONFIRMATION
 - CONFIRMED
 - CHECKED_IN
@@ -308,3 +309,11 @@ Uma clínica deve conseguir:
 13. enviar lembretes;
 14. auditar ações;
 15. operar sem vazamento entre tenants.
+
+### Definições das métricas do Dashboard — TASK-031
+
+O dashboard da clínica está em `/dashboard`, protegido por analytics.view no backend.
+Agenda usa start_at e exclui RESCHEDULED; atendimento distingue estado atual de
+atividade no período. As fórmulas completas, timezone, filtros, SLA e conversão
+estão em [Definições das métricas do Dashboard](dashboard.md). TASK-032 permanece
+fora do escopo; não há indicadores globais, billing ou métricas clínicas.

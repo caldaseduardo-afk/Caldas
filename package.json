@@ -22,7 +22,8 @@
     "auth:create-user": "pnpm --filter @atendente/database build && pnpm --filter @atendente/api auth:create-user",
     "tenancy:grant": "pnpm --filter @atendente/database build && pnpm --filter @atendente/api tenancy:grant",
     "db:seed:rbac": "pnpm --filter @atendente/database db:seed:rbac",
-    "clinics:create": "pnpm --filter @atendente/database build && pnpm --filter @atendente/api clinics:create"
+    "clinics:create": "pnpm --filter @atendente/database build && pnpm --filter @atendente/api clinics:create",
+    "whatsapp:configure": "pnpm --filter @atendente/database whatsapp:configure"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

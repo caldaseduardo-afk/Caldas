@@ -264,3 +264,51 @@ service/repository, não apenas no guard. Todas as operações usam o tenant ati
 sem aceitar tenant arbitrário no corpo/header. FKs compostas impedem Patient,
 Contact e autores de outros tenants. Detalhes de projeção/autorização contextual
 estão em security.md; revogação e principal em domain-model.md.
+
+## Catálogo de especialidades/serviços — TASK-009
+
+Todas as rotas administrativas /specialties e /services exigem service.manage,
+existente no catálogo e concedida a CLINIC_ADMIN. Não há nova permissão nem
+concessão a AGENT/DOCTOR. Guards, services e repositories validam; filtros SQL
+incluem tenant/sessão/vínculo/permissão. FK composta impede serviço e especialidade
+de tenants diferentes. IDs externos/inexistentes retornam o mesmo 404 genérico;
+conflito de nome/concorrência retorna 409 sem dados do registro conflitante.
+
+GET listagem/detalhe, POST criação e PATCH alteração/active usam somente o tenant
+da sessão. Listagens aceitam active=true/false; /services aceita também specialtyId.
+Filtrar especialidade externa/inexistente retorna 404. Sem filtro, o catálogo
+administrativo inclui inativos. Campos/queries desconhecidos são rejeitados.
+Respostas expõem apenas ID e campos de negócio, sem tenantId/timestamps internos.
+
+## Profissionais — TASK-010
+
+| Endpoints                                                                            | Permissões                       |
+| ------------------------------------------------------------------------------------ | -------------------------------- |
+| GET/POST /providers e GET/PATCH /providers/:id                                       | provider.manage                  |
+| GET/POST /providers/:providerId/services e PATCH /providers/:providerId/services/:id | provider.manage + service.manage |
+| GET /services/:serviceId/providers                                                   | provider.manage + service.manage |
+| GET/POST /providers/:providerId/units e PATCH /providers/:providerId/units/:id       | provider.manage + unit.view      |
+
+Nenhuma nova permissão/concessão: CLINIC_ADMIN possui as políticas necessárias;
+AGENT/DOCTOR não gerenciam profissionais. Verificações existem no guard, service,
+repository e SQL, sempre com tenant/sessão/vínculo/permissões. FKs compostas
+proíbem vínculos cruzados. ID externo/inexistente tem o mesmo 404; vínculo duplicado
+ou conflito concorrente, 409 genérico. Responses omitem tenantId/timestamps internos.
+A consulta de habilitados por serviço omite registro profissional e inclui apenas
+cadastros/vínculos/serviço ativos. Essa consulta não calcula disponibilidade.
+
+## Disponibilidade — TASK-011
+
+GET/POST /availability-rules, GET/PATCH /availability-rules/:id,
+GET/POST /schedule-exceptions, GET/PATCH /schedule-exceptions/:id e
+GET /providers/:providerId/availability exigem provider.manage + unit.view.
+Não há novas concessões de RBAC; o acesso atual é administrativo por CLINIC_ADMIN.
+Services/repositories repetem autorização e consultas incluem filtros SQL de
+sessão/tenant/permissões. Não há acesso público nem autorização pelo frontend.
+
+Listas aceitam providerId, unitId e active; exceções também dateFrom/dateUntil
+inclusivos. Filtros/IDs externos e inexistentes retornam o mesmo 404. Respostas
+omitem tenantId/timestamps técnicos; a resposta estrutural expõe apenas date,
+timezone e janelas. Associações com outro tenant são impedidas por FKs compostas.
+A consulta estrutural não concede acesso a pacientes nem confirma disponibilidade
+final para agendamento.

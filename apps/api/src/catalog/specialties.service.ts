@@ -12,6 +12,10 @@ export class SpecialtiesService {
     private readonly authorization: AuthorizationService,
     private readonly repository: SpecialtyRepository,
   ) {}
+  async forAttendance() {
+    await this.authorization.requirePermissions('appointment.view');
+    return this.repository.forAttendance();
+  }
   async list(query: unknown) {
     await this.authorization.requirePermissions('service.manage');
     return this.repository.list(catalogFilter(query, false));

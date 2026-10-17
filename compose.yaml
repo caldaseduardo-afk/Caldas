@@ -3,6 +3,8 @@ services:
     build: .
     init: true
     command: pnpm --filter @atendente/web dev
+    environment:
+      API_INTERNAL_URL: http://api:3001
     ports:
       - '127.0.0.1:3000:3000'
   api:
@@ -10,11 +12,33 @@ services:
     init: true
     command: pnpm --filter @atendente/api dev
     environment:
+      REDIS_URL: redis://redis:6379/0
       NODE_ENV: development
       DATABASE_URL: postgresql://${POSTGRES_USER:-atendente}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-atendente_ia}
       AUTH_SECRET: ${AUTH_SECRET:?Defina AUTH_SECRET no .env}
       AUTH_ORIGIN: ${AUTH_ORIGIN:-http://localhost:3000}
+      WHATSAPP_APP_SECRET: ${WHATSAPP_APP_SECRET:-}
+      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-}
+      WHATSAPP_GRAPH_VERSION: ${WHATSAPP_GRAPH_VERSION:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_TIMEOUT_MS: ${OPENAI_TIMEOUT_MS:-}
+      OPENAI_MAX_OUTPUT_TOKENS: ${OPENAI_MAX_OUTPUT_TOKENS:-}
+      OPENAI_MAX_RETRIES: ${OPENAI_MAX_RETRIES:-}
+      OPENAI_RETRY_DELAY_MS: ${OPENAI_RETRY_DELAY_MS:-}
+      OPENAI_MAX_RETRY_DELAY_MS: ${OPENAI_MAX_RETRY_DELAY_MS:-}
+      OPENAI_TEMPERATURE: ${OPENAI_TEMPERATURE:-}
+      TOOL_CALLS_PER_TURN: ${TOOL_CALLS_PER_TURN:-}
+      TOOL_TIMEOUT_MS: ${TOOL_TIMEOUT_MS:-}
+      TOOL_TURN_TIMEOUT_MS: ${TOOL_TURN_TIMEOUT_MS:-}
+      HOLD_TTL_SECONDS: ${HOLD_TTL_SECONDS:-300}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REFRESH_TOKEN: ${GOOGLE_REFRESH_TOKEN:-}
     depends_on:
+      redis:
+        condition: service_healthy
       postgres:
         condition: service_healthy
     ports:
@@ -23,6 +47,36 @@ services:
     build: .
     init: true
     command: pnpm --filter @atendente/worker dev
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      NODE_ENV: development
+      DATABASE_URL: postgresql://${POSTGRES_USER:-atendente}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-atendente_ia}
+      WHATSAPP_GRAPH_VERSION: ${WHATSAPP_GRAPH_VERSION:-}
+      WHATSAPP_ACCESS_TOKEN_DEFAULT: ${WHATSAPP_ACCESS_TOKEN_DEFAULT:-}
+      HOLD_SWEEP_INTERVAL_MS: ${HOLD_SWEEP_INTERVAL_MS:-30000}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-4}
+      NOTIFICATION_RECONCILIATION_HORIZON_DAYS: ${NOTIFICATION_RECONCILIATION_HORIZON_DAYS:-30}
+      CALENDAR_RECONCILIATION_HORIZON_DAYS: ${CALENDAR_RECONCILIATION_HORIZON_DAYS:-180}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REFRESH_TOKEN: ${GOOGLE_REFRESH_TOKEN:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+  redis:
+    image: redis:7.4-alpine
+    command: redis-server --appendonly yes --maxmemory-policy noeviction
+    ports:
+      - '127.0.0.1:${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 2s
+      timeout: 5s
+      retries: 20
   postgres:
     image: postgres:17-bookworm
     environment:
@@ -42,4 +96,5 @@ services:
       retries: 20
 
 volumes:
+  redis_data:
   postgres_data:

@@ -1,3 +1,4 @@
+import { recordAudit } from '@atendente/database';
 import { configurationWrite } from '../configuration/configuration-write';
 import type { CreateUnitDto, UpdateUnitDto } from './unit.dto';
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -86,7 +87,7 @@ export class UnitRepository {
             tenantId: scope.tenantId,
           },
         });
-        await tx.authEvent.create({
+        await recordAudit(tx, {
           data: {
             type: 'UNIT_CREATED',
             userId: scope.userId,
@@ -128,7 +129,7 @@ export class UnitRepository {
           },
         });
         if (!unit) throw new NotFoundException('Recurso não encontrado.');
-        await tx.authEvent.create({
+        await recordAudit(tx, {
           data: {
             type:
               before.active && !unit.active

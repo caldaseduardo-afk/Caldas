@@ -1,3 +1,4 @@
+import { recordAudit } from '@atendente/database';
 import { createDatabaseClient } from '@atendente/database';
 import { normalizeEmail } from '../auth/auth.input';
 import { tenantSelection } from './tenancy.service';
@@ -31,8 +32,13 @@ async function main() {
       await tx.userTenant.create({
         data: { userId: user.id, tenantId, role: 'AGENT' },
       });
-      await tx.authEvent.create({
-        data: { type: 'TENANT_MEMBERSHIP_GRANTED', userId: user.id, tenantId },
+      await recordAudit(tx, {
+        data: {
+          type: 'TENANT_MEMBERSHIP_GRANTED',
+          resourceId: user.id,
+          tenantId,
+          newValues: { role: 'AGENT', active: true },
+        },
       });
     });
     console.log(
