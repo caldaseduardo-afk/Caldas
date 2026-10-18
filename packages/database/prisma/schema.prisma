@@ -10,6 +10,7 @@ datasource db {
 }
 
 model Tenant {
+  subscription                 TenantSubscription?
   calendarIntegration           CalendarIntegration?
   calendarSyncAttempts          CalendarSyncAttempt[]
   notificationAttempts         NotificationAttempt[]
@@ -54,7 +55,35 @@ model Tenant {
   patients                     Patient[]
   patientLinks                 ContactPatient[]
 
+  @@index([status, name, id], map: "tenants_platform_status_name_idx")
   @@map("tenants")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIAL
+  GRACE
+  SUSPENDED
+  CANCELLED
+}
+
+model TenantSubscription {
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId            String             @unique @map("tenant_id") @db.Uuid
+  planCode            String             @default("BASIC") @map("plan_code") @db.VarChar(32)
+  status              SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart  DateTime           @map("current_period_start") @db.Timestamptz(3)
+  currentPeriodEnd    DateTime           @map("current_period_end") @db.Timestamptz(3)
+  graceUntil          DateTime?          @map("grace_until") @db.Timestamptz(3)
+  scheduledPlanCode   String?            @map("scheduled_plan_code") @db.VarChar(32)
+  overrides           Json               @default("{}") @db.JsonB
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tenant              Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+
+  @@index([status, currentPeriodEnd])
+  @@index([tenantId, currentPeriodStart])
+  @@map("tenant_subscriptions")
 }
 
 model Unit {
@@ -86,6 +115,13 @@ enum UserStatus {
 }
 
 enum AuthEventType {
+  PLAN_CHANGED
+  PLAN_UPGRADED
+  PLAN_DOWNGRADED
+  PLAN_OVERRIDE_CHANGED
+  SUBSCRIPTION_STATUS_CHANGED
+  GRACE_STARTED
+  GRACE_ENDED
   PLATFORM_ADMIN_GRANTED
   PLATFORM_ADMIN_REVOKED
   PLATFORM_MFA_ENROLLED
@@ -811,6 +847,7 @@ model Appointment {
   @@index([tenantId, serviceId])
   @@index([tenantId, syncStatus])
   @@index([tenantId, createdAt])
+  @@index([createdAt], map: "appointments_platform_created_idx")
   @@map("appointments")
 }
 
@@ -1002,6 +1039,7 @@ model Conversation {
   @@index([tenantId, channel, lastMessageAt])
   @@index([tenantId, createdAt])
   @@index([tenantId, status, handoffRequestedAt, id], map: "conversations_human_queue_idx")
+  @@index([createdAt], map: "conversations_platform_created_idx")
   @@map("conversations")
 }
 
@@ -1169,6 +1207,7 @@ model Message {
   @@index([tenantId, conversationId, createdAt, id])
   @@index([tenantId, createdAt])
   @@index([tenantId, senderType, createdAt])
+  @@index([createdAt], map: "messages_platform_created_idx")
   @@map("messages")
 }
 
@@ -1431,6 +1470,7 @@ model AIUsage {
   @@index([tenantId, correlationId])
   @@index([provider, model, createdAt])
   @@index([tenantId, aiConfigurationVersionId])
+  @@index([createdAt], map: "ai_usage_platform_created_idx")
   @@map("ai_usage")
 }
 
@@ -1656,7 +1696,7 @@ model PlatformAdmin {
   inviteExpiresAt DateTime? @map("invite_expires_at") @db.Timestamptz(3)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   @@map("platform_admins")
 }
 model PlatformSession {
@@ -1665,7 +1705,7 @@ model PlatformSession {
   tokenHash String @unique @map("token_hash") @db.Char(64)
   verifiedAt DateTime @default(now()) @map("verified_at") @db.Timestamptz(3)
   expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
-  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   @@index([userId, expiresAt])
   @@map("platform_sessions")
 }

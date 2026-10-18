@@ -41,7 +41,19 @@ export function messagingLog(
     durationMs: number;
   },
 ) {
-  console.info(JSON.stringify({ event, provider: 'WHATSAPP_CLOUD', ...data }));
+  console.info(
+    JSON.stringify({
+      event: event.slice(0, 80),
+      provider: 'WHATSAPP_CLOUD',
+      correlationId: data.correlationId,
+      ...(data.tenantId ? { tenantId: data.tenantId } : {}),
+      ...(data.providerMessageId
+        ? { providerMessageId: data.providerMessageId }
+        : {}),
+      result: data.result.slice(0, 80),
+      durationMs: Math.max(0, Math.trunc(data.durationMs)),
+    }),
+  );
 }
 async function transaction<T>(
   client: PrismaClient,

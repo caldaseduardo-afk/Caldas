@@ -656,7 +656,33 @@ export function notificationLog(
   event: string,
   data: Record<string, string | number | boolean | null | undefined>,
 ) {
+  const allowed = [
+    'correlationId',
+    'count',
+    'scanned',
+    'jobId',
+    'type',
+    'tenantId',
+    'appointmentId',
+    'attempt',
+    'scheduledAt',
+    'startedAt',
+    'outcome',
+    'durationMs',
+    'errorCode',
+    'retry',
+  ] as const;
+  const fields = Object.fromEntries(
+    allowed.flatMap((key) => {
+      const value = data[key];
+      return value === undefined || value === null ? [] : [[key, value]];
+    }),
+  );
   console.info(
-    JSON.stringify({ event, component: 'appointment-notifications', ...data }),
+    JSON.stringify({
+      event: event.slice(0, 80),
+      component: 'appointment-notifications',
+      ...fields,
+    }),
   );
 }

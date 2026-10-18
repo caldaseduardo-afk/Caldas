@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   ParseIntPipe,
   ParseUUIDPipe,
@@ -11,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { RequirePermissions } from '../permissions/permission.decorator';
 import { KnowledgeService } from './knowledge.service';
+import { RateLimit } from '../rate-limit/rate-limit.decorator';
 @Controller('knowledge')
 export class KnowledgeController {
   constructor(private readonly service: KnowledgeService) {}
@@ -24,7 +26,7 @@ export class KnowledgeController {
   ) {
     return this.service.create(body);
   }
-  @Post('search/preview') @RequirePermissions('knowledge.view') search(
+  @Post('search/preview') @HttpCode(200) @RequirePermissions('knowledge.view') @RateLimit(15) search(
     @Body() body: unknown,
   ) {
     return this.service.search(body);

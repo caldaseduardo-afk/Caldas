@@ -9,6 +9,7 @@ import {
   AuthorizationService,
   authorizedTenantFilter,
 } from '../permissions/authorization.service';
+import { assertHardPlanLimit } from '../plans/plan-usage';
 import type { CreateArticleDto, UpdateDraftDto } from './knowledge.dto';
 
 const versionFields = {
@@ -87,6 +88,7 @@ export class KnowledgeRepository {
           select: { id: true },
         });
         if (!tenant) throw new NotFoundException('Recurso não encontrado.');
+        await assertHardPlanLimit(tx, scope.tenantId, 'maxKnowledgeArticles');
         if (dto.unitId) {
           const unit = await tx.unit.findFirst({
             where: { id: dto.unitId, tenantId: scope.tenantId },

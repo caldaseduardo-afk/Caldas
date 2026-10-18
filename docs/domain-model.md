@@ -785,3 +785,11 @@ newValues, metadata e correlationId são campos estruturados. isBusiness diferen
 mutações relevantes de histórico técnico/identidade global legado. Eventos de negócio
 exigem tenantId/resourceId/resourceType; não têm updatedAt nem exclusão em cascata.
 Consulte [audit.md](audit.md) para matriz, compatibilidade e política append-only.
+
+## TASK-032 — Administração de plataforma
+PlatformAdmin: concessão global porUser, estadoativo, credencialTOTP cifrada,
+enrollment, contadoranti-replay e convite temporário hash. PlatformSession: sessão
+verificada com tokenhash único e validade1h. Não possuem tenant_id pois representam
+a identidade de operação da plataforma, nunca recurso de clínica. Relações com
+User usamRESTRICT. Tenants e objetos clínicos permanecem separados; detalhe de
+plataforma é uma projeção auditada, não membership/impersonation.

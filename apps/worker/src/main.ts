@@ -1,4 +1,5 @@
 import {
+  startPlatformHeartbeat,
   GoogleCalendarProvider,
   createCalendarSyncQueue,
   createCalendarSyncWorker,
@@ -100,11 +101,13 @@ async function main() {
     () =>
       console.error('Falha ao expirar HOLDs; nova tentativa no próximo ciclo.'),
   );
+  const stopHeartbeat = startPlatformHeartbeat(process.env.REDIS_URL ?? '');
   let closing = false;
   for (const signal of ['SIGINT', 'SIGTERM'] as const)
     process.once(signal, () => {
       if (closing) return;
       closing = true;
+      stopHeartbeat();
       void Promise.all([
         stop(),
         stopSla(),

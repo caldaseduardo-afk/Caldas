@@ -21,6 +21,7 @@ export const auditActorContext = new AsyncLocalStorage<AuditActorContext>();
 export const AUDIT_ACTION_RESOURCES: Partial<
   Record<AuthEventType, AuditResourceType>
 > = {
+  PLATFORM_TENANT_VIEWED: 'TENANT',
   TENANT_CREATED: 'TENANT',
   TENANT_UPDATED: 'TENANT',
   TENANT_DEACTIVATED: 'TENANT',
@@ -224,10 +225,17 @@ export async function recordAiAuditMany(tx: Writer, args: { data: Data[] }) {
   for (const data of args.data) await recordAiAudit(tx, { data });
   return { count: args.data.length };
 }
-export function recordIntegrationAudit(tx: Writer, args: { data: Data }) {
+export function recordIntegrationAudit(
+  tx: Writer,
+  args: { data: Data },
+  correlationId?: string,
+  actorReferenceId?: string,
+) {
   return recordAudit(tx, args, {
     tenantId: args.data.tenantId!,
     actorType: 'INTEGRATION',
     source: 'WHATSAPP',
+    ...(actorReferenceId ? { actorReferenceId } : {}),
+    ...(correlationId ? { correlationId } : {}),
   });
 }

@@ -312,3 +312,16 @@ omitem tenantId/timestamps técnicos; a resposta estrutural expõe apenas date,
 timezone e janelas. Associações com outro tenant são impedidas por FKs compostas.
 A consulta estrutural não concede acesso a pacientes nem confirma disponibilidade
 final para agendamento.
+
+## TASK-032 — Contexto de plataforma
+PlatformAdmin é concessão global independente de UserTenant. PlatformScope nasce
+após sessão com TOTP confirmado. Repositories de clínica continuam exigindo tenant;
+PlatformRepository é a única camada nova de consultas agregadas globais. Detalhe
+recebe target tenant explícito, limita projeções e registra PLATFORM_TENANT_VIEWED
+com ator real. Nenhum parâmetro do cliente remove filtros. A restrição histórica
+de SUPER_ADMIN permanece para roles de membership; veja [super-admin.md](super-admin.md).
+# Planos e assinatura
+
+Cada Tenant tem uma TenantSubscription única. O ciclo e o consumo são
+tenant-scoped; a política de limites e capacidades está em
+[`plans-usage.md`](./plans-usage.md).

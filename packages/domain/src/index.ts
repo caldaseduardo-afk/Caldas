@@ -3,3 +3,4 @@ export * from './messaging-provider';
 export * from './ai-provider';
 export * from './notification-schedule';
 export * from './calendar-provider';
+export * from './plans';

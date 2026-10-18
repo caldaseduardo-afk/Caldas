@@ -13,28 +13,39 @@ export async function configurationWrite<T>(
   execute: (tx: Prisma.TransactionClient, scope: TenantScope) => Promise<T>,
 ): Promise<T> {
   const scope = await authorization.requirePermissions('settings.manage');
-  try {
-    return await database.client.$transaction(
-      async (tx) => {
-        const tenant = await tx.tenant.findFirst({
-          where: authorizedTenantFilter(scope, ['settings.manage']),
-          select: { id: true },
-        });
-        if (!tenant) throw new ForbiddenException('Permissão insuficiente.');
-        return execute(tx, scope);
-      },
-      { isolationLevel: 'Serializable' },
-    );
-  } catch (error) {
-    if (
-      error &&
-      typeof error === 'object' &&
-      'code' in error &&
-      error.code === 'P2034'
-    )
-      throw new ConflictException(
-        'Configuração alterada simultaneamente. Tente novamente.',
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await database.client.$transaction(
+        async (tx) => {
+          const tenant = await tx.tenant.findFirst({
+            where: authorizedTenantFilter(scope, ['settings.manage']),
+            select: { id: true },
+          });
+          if (!tenant) throw new ForbiddenException('Permissão insuficiente.');
+          return execute(tx, scope);
+        },
+        { isolationLevel: 'Serializable' },
       );
-    throw error;
+    } catch (error) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'P2034' &&
+        attempt < 2
+      )
+        continue;
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'P2034'
+      )
+        throw new ConflictException(
+          'Configuração alterada simultaneamente. Tente novamente.',
+        );
+      throw error;
+    }
   }
+  throw new ConflictException('Configuração alterada simultaneamente. Tente novamente.');
 }

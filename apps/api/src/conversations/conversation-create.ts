@@ -13,6 +13,7 @@ export async function getOrCreateConversation(
   integrationId: string | null,
   pending: EventDraft[],
   userId?: string,
+  correlationId?: string,
 ) {
   const existing = await tx.conversation.findFirst({
     where: {
@@ -46,6 +47,7 @@ export async function getOrCreateConversation(
           actorType: 'INTEGRATION',
           source: 'WHATSAPP',
           actorReferenceId: integrationId,
+          ...(correlationId ? { correlationId } : {}),
         }
       : undefined,
   );

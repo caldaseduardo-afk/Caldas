@@ -61,6 +61,11 @@ test('clínicas/unidades: cadastro, alteração, inativação, auditoria e isola
       adminB.email,
       { name: 'Clínica B', timezone: 'UTC' },
     );
+    // Estes cenários cobrem múltiplas unidades, acima do limite BASIC.
+    await client.tenantSubscription.updateMany({
+      where: { tenantId: { in: [clinicA.id, clinicB.id] } },
+      data: { planCode: 'PRO' },
+    });
     await client.userTenant.createMany({
       data: [
         { userId: reader.id, tenantId: clinicA.id, role: 'AGENT' },

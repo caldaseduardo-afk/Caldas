@@ -17,7 +17,8 @@ function run(command, args, capture = false) {
     env: environment,
     encoding: 'utf8',
     stdio: capture ? 'pipe' : 'inherit',
-    timeout: 120_000,
+    // The complete serial API integration suite includes cryptography and real queues.
+    timeout: args.includes('test:integration') ? 600_000 : 120_000,
   });
   if (result.error || result.status !== 0) {
     // Não imprimir env ou saída capturada: pode conter credenciais.

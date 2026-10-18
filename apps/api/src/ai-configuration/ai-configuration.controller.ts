@@ -10,6 +10,7 @@ import {
 import { RequirePermissions } from '../permissions/permission.decorator';
 import { AIConfigurationService } from './ai-configuration.service';
 import { AIConfigurationSimulationService } from './ai-configuration.simulation';
+import { RateLimit } from '../rate-limit/rate-limit.decorator';
 @Controller('ai-configuration')
 export class AIConfigurationController {
   constructor(
@@ -63,6 +64,7 @@ export class AIConfigurationController {
   }
   @Post('versions/:id/simulate')
   @RequirePermissions('settings.manage')
+  @RateLimit(10)
   simulate(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: unknown,

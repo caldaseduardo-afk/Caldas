@@ -3,11 +3,12 @@ import { RequirePermissions } from '../permissions/permission.decorator';
 import { availabilityPermissions } from './availability-access';
 import { structuralQuery, dateText } from './availability.dto';
 import { AvailabilityService } from './availability.service';
+import { RateLimit } from '../rate-limit/rate-limit.decorator';
 @Controller('providers/:providerId/availability')
 @RequirePermissions(...availabilityPermissions)
 export class AvailabilityController {
   constructor(private readonly service: AvailabilityService) {}
-  @Get() get(
+  @Get() @RateLimit(60) get(
     @Param('providerId', new ParseUUIDPipe()) providerId: string,
     @Query() query: unknown,
   ) {

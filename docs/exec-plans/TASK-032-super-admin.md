@@ -101,3 +101,44 @@ Recuperação é novo convite administrativo com revogação de sessões e crede
 anterior; não haverá bypass HTTP de MFA ou cadastro público de superadmins.
 Provisionamento/revogação é comando operacional explícito, não seed automático.
 Fonte: https://www.rfc-editor.org/rfc/rfc6238
+
+## Implementação e revisão
+- Modelos PlatformAdmin/PlatformSession e enum de auditoria em migration aditiva
+  `20261017000000_platform_admin`; índices de leitura globais em migration separada
+  `20261017010000_platform_indexes`. Nenhuma migration histórica foi reescrita.
+- AuthGuard reconhece metadata explícita de plataforma; TenantGuard e PermissionGuard
+  preservam autorização normal e só aceitam esse caminho após contexto autenticado.
+- Queries globais parametrizadas em repository dedicado, com sessão revalidada no
+  snapshot. Filtros se aplicam ao conjunto de tenants antes de agregar. Projeções
+  nunca selecionam conteúdo de mensagem, paciente ou credentials/settings.
+- UI e proxy usam endpoints fixos. O detalhe fica separado do tenant ativo clínico.
+- Saúde Redis/filas independente do overview; heartbeat TTL60s, a cada15s. Provedores
+  externos UNKNOWN; zero jobs não implica consumidor saudável.
+- Documentação operacional, métricas e limitações em `docs/super-admin.md`.
+- Corrigida fixture de AIUsage para SUCCESS exigir completedAt/attempts conforme
+  constraint já existente. Corrigido teste antigo de recibos para usar relógio do
+  PostgreSQL, evitando falha intermitente por diferença do relógio host/container.
+- A suíte serial de integração passou a ter teto de10min por comando, mantendo120s
+  para comandos comuns: com a carga local,120s interrompia testes ainda em execução.
+  Não altera timeouts de negócio ou relaxa assertions.
+- Relações novas com User usam onUpdate NoAction no Prisma para corresponder às
+  foreign keys SQL já declaradas; identidades não podem ser trocadas por cascade.
+- O teste de health usa `TEST_REDIS_URL`, criado pelo runner de banco, e aguarda
+  heartbeat com polling limitado. A escrita inicial pode ocorrer antes de Redis
+  estar pronto; o teste usa intervalo curto para cobrir a tentativa subsequente e
+  então confirma a expiração do TTL. Produção mantém 15s/60s.
+
+## Validação final
+- `pnpm --filter @atendente/database db:validate`: aprovado.
+- `pnpm db:test`: aprovado. Migrations aplicadas do zero e reaplicadas sem
+  pendências, seeds repetidos idempotentes, 301 testes de integração aprovados,
+  incluindo os sete cenários de TASK-032; execução usa PostgreSQL/Redis efêmeros.
+- `pnpm test`: 190 testes unitários aprovados (API 155, web 23, database 6,
+  worker 6); 8 tarefas do monorepo concluídas.
+- `pnpm lint`: 8 tarefas aprovadas.
+- `pnpm typecheck`: 12 tarefas aprovadas.
+- `pnpm build`: 7 tarefas aprovadas; `/super-admin` compilada como rota estática.
+- Playwright: 24 E2E aprovados, incluindo os dois cenários da plataforma.
+- `git diff --check`: aprovado.
+- Não foi aplicada migration ao banco persistente de desenvolvimento; a validação
+  completa usou os containers descartáveis iniciados pelo `pnpm db:test`.

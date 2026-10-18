@@ -1,0 +1,4 @@
+.platform-plan-metrics { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
+.platform-plan-metrics span { border-radius: 7px; border: 1px solid #d9e0dc; background: #fff; padding: 9px 12px; }
+.platform-plan-form { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); align-items: end; gap: 10px; }
+.platform-plan-form label { margin: 0; }

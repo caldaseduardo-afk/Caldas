@@ -1,6 +1,8 @@
 export function allowedPath(method: string, path: string) {
   const id = '[0-9a-fA-F-]{36}';
   return (
+    (method === 'GET' && (/^super-admin\/(session|overview|health)$/.test(path) || new RegExp(`^super-admin/tenants/${id}$`).test(path) || path === 'plans/current' || path === 'plans/catalog')) ||
+    (method === 'POST' && /^super-admin\/(login|enroll|logout)$/.test(path)) ||
     (method === 'GET' && /^(analytics\/dashboard|analytics\/dashboard\/options)$/.test(path)) ||
     (method === 'GET' && (path === 'audit' || new RegExp(`^audit/${id}$`).test(path))) ||
     (method === 'GET' &&
@@ -21,6 +23,7 @@ export function allowedPath(method: string, path: string) {
         ).test(path))) ||
     (method === 'PATCH' &&
       (new RegExp(`^conversations/${id}$`).test(path) ||
-        new RegExp(`^ai-configuration/versions/${id}$`).test(path)))
+        new RegExp(`^ai-configuration/versions/${id}$`).test(path) ||
+        new RegExp(`^super-admin/tenants/${id}/subscription$`).test(path)))
   );
 }

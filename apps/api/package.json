@@ -12,22 +12,24 @@
     "test:integration": "tsc -p tsconfig.test.json && node --test --test-concurrency=1 .test-dist/integration/*.test.js",
     "auth:create-user": "pnpm build && node --env-file-if-exists=../../.env dist/auth/create-user.js",
     "tenancy:grant": "pnpm build && node --env-file-if-exists=../../.env dist/tenancy/grant-membership.js",
-    "clinics:create": "pnpm build && node --env-file-if-exists=../../.env dist/clinics/create-clinic.js"
+    "clinics:create": "pnpm build && node --env-file-if-exists=../../.env dist/clinics/create-clinic.js",
+    "platform:admin": "pnpm build && node --env-file-if-exists=../../.env dist/platform-admin/provision-platform-admin.js"
   },
   "dependencies": {
     "@atendente/database": "workspace:*",
     "@atendente/domain": "workspace:*",
+    "@atendente/types": "workspace:*",
     "@nestjs/common": "^11.1.0",
     "@nestjs/core": "^11.1.0",
     "@nestjs/platform-express": "^11.1.0",
     "cookie": "^1.1.1",
     "express": "^5.2.1",
+    "ioredis": "^6.0.0",
     "openai": "^7.28.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "ws": "^8.22.0",
-    "zod": "^4.6.5",
-    "@atendente/types": "workspace:*"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@nestjs/testing": "^11.2.7",

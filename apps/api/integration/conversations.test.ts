@@ -731,14 +731,21 @@ test('Conversas e mensagens: tenant, autoria, idempotência, estados, ordem e at
     await t.test(
       'recibos internos coerentes, idempotentes, leitura implica entrega; não há endpoint público',
       async () => {
-        const at = new Date().toISOString();
+        // Use the same clock as the repository; host/container clocks may differ.
+        const receiptNow = async () =>
+          (
+            await client.$queryRaw<
+              Array<{ now: Date }>
+            >`SELECT clock_timestamp() AS now`
+          )[0]!.now.toISOString();
+        const at = await receiptNow();
         const delivered = await internal.service.recordReceipt(
           conversation.id,
           first.id,
           { kind: 'DELIVERED', at },
         );
         assert.equal(delivered.deliveredAt!.toISOString(), at);
-        const readAt = new Date().toISOString();
+        const readAt = await receiptNow();
         const read = await internal.service.recordReceipt(
           conversation.id,
           first.id,
@@ -775,7 +782,7 @@ test('Conversas e mensagens: tenant, autoria, idempotência, estados, ordem e at
         const m = await reply(other.id);
         const readOnly = await internal.service.recordReceipt(other.id, m.id, {
           kind: 'READ',
-          at: new Date().toISOString(),
+          at: await receiptNow(),
         });
         assert.deepEqual(readOnly.readAt, readOnly.deliveredAt);
         const incoming = await internal.service.persistIncoming(other.id, {
@@ -786,7 +793,7 @@ test('Conversas e mensagens: tenant, autoria, idempotência, estados, ordem e at
         await assert.rejects(
           internal.service.recordReceipt(other.id, incoming.id, {
             kind: 'READ',
-            at: new Date().toISOString(),
+            at: await receiptNow(),
           }),
         );
         assert.equal(

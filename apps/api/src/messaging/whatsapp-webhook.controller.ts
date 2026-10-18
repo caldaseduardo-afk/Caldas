@@ -16,6 +16,7 @@ import { randomUUID } from 'node:crypto';
 import { WhatsAppProvider, messagingLog } from '@atendente/database';
 import { Public } from '../auth/auth.guard';
 import { ConversationIngressService } from '../conversations/conversation-ingress.service';
+import { RateLimit } from '../rate-limit/rate-limit.decorator';
 
 @Controller('webhooks/whatsapp')
 @Public()
@@ -23,6 +24,7 @@ import { ConversationIngressService } from '../conversations/conversation-ingres
 export class WhatsAppWebhookController {
   constructor(private readonly conversations: ConversationIngressService) {}
   @Get()
+  @RateLimit(60)
   verify(@Query() query: Record<string, unknown>, @Res() response: Response) {
     try {
       const provider = new WhatsAppProvider(
@@ -41,6 +43,7 @@ export class WhatsAppWebhookController {
   }
   @Post()
   @HttpCode(200)
+  @RateLimit(120)
   async receive(@Req() request: Request) {
     const started = Date.now(),
       correlationId = randomUUID();
@@ -71,7 +74,7 @@ export class WhatsAppWebhookController {
     });
     for (const event of messages) {
       try {
-        const result = await this.conversations.receive(event);
+        const result = await this.conversations.receive(event, correlationId);
         messagingLog(result.outcome, {
           correlationId,
           tenantId: 'tenantId' in result ? result.tenantId : undefined,

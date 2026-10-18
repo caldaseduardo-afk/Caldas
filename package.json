@@ -2,6 +2,12 @@
   "name": "atendente-ia",
   "private": true,
   "packageManager": "pnpm@10.30.3",
+  "pnpm": {
+    "overrides": {
+      "@prisma/config>deepmerge-ts": "8.0.2",
+      "prisma>mysql2": "3.23.1"
+    }
+  },
   "engines": {
     "node": ">=22 <23"
   },

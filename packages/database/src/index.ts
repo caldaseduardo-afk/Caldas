@@ -75,3 +75,5 @@ export {
 
 export * from './audit';
 export { AuditActorType, AuditSource, AuditResourceType, AuthEventType } from './generated/prisma/client';
+
+export * from './platform-health';

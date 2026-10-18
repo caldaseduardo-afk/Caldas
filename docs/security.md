@@ -168,6 +168,51 @@ Sessão de tenant e permissões serão implementadas nas TASK-004/005.
   automático nesta tarefa. Rotacionar AUTH_SECRET reinicia as chaves de limitação,
   mas não revoga sessões: revogação precisa remover os registros de sessão.
 
+## Hardening — TASK-034
+
+API aplica CORS apenas para a origem exata de `AUTH_ORIGIN`, sem reflexão de Origin.
+Escritas autenticadas continuam exigindo Origin exata; cookies usam HttpOnly e
+SameSite=Strict e, em produção, Secure/`__Host-`. Login e login de plataforma usam
+limites persistentes por IP e identidade/conta com chaves HMAC no PostgreSQL; os
+contadores expiram em janela de 15 minutos e não usam `X-Forwarded-For` como fonte
+confiável.
+
+Headers API: CSP restritiva para JSON, `X-Content-Type-Options: nosniff`,
+`X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, Permissions-Policy,
+`Cache-Control: no-store` e HSTS em produção. Next envia CSP, frame denial,
+nosniff, referrer e permissions policy; scripts inline ainda são permitidos por
+compatibilidade com a renderização Next, e `unsafe-eval` só é permitido no modo de
+desenvolvimento. Esta CSP requer validação em browser no domínio e proxy reais,
+principalmente WebSocket, antes de endurecer ou declarar proteção completa contra
+injeção de script.
+
+`/health/live` verifica apenas que o processo responde. `/health/ready` executa
+`SELECT 1` e retorna somente status da dependência, sem detalhes da conexão. Redis,
+AI, WhatsApp e Calendar são avaliados como degradações operacionais, não como
+dependências para o processo responder liveness.
+
+Rate limiting da API usa contadores atômicos Redis com chaves HMAC derivadas de
+`AUTH_SECRET`, orçamento geral por IP e orçamento agregado por tenant/plataforma.
+Busca de conhecimento, configuração/simulação de IA, disponibilidade, dashboard e
+rotas de plataforma têm limites por rota; webhook WhatsApp tem orçamento por IP
+(120 eventos/minuto; verificação GET 60/minuto). Login mantém também seu throttle
+persistente por IP e identidade no PostgreSQL. Em produção `REDIS_URL` é obrigatório;
+indisponibilidade do Redis falha fechado com 503 para rotas operacionais. O
+`/health/ready` reporta PostgreSQL e Redis sem detalhes internos. A chave por IP usa
+o endereço observado pelo Express; a configuração de proxies confiáveis deve ser
+feita somente para a topologia real de produção, pois `X-Forwarded-For` não é
+confiável por padrão.
+
+Permanecem pendentes o logger uniforme com redaction/correlation entre API e
+worker e a confirmação do workflow CI no repositório remoto. Consulte
+`docs/production-readiness-checklist.md` para evidências e itens adiados.
+
+Revisão estática TASK-034 não encontrou `$queryRawUnsafe`, `$executeRawUnsafe`,
+`dangerouslySetInnerHTML`, `eval` ou shell de runtime do produto. SQL raw existente
+usa tagged templates parametrizados. O Dockerfile/Compose atual é ambiente de
+desenvolvimento; a imagem agora executa como usuário `node`, mas não deve ser
+tratada como imagem de produção.
+
 ## Isolamento de tenant — TASK-004
 
 O guard de tenant é obrigatório por padrão após autenticação. Exceções de
@@ -440,3 +485,11 @@ Consulta exige audit.view e revalida tenant/RBAC na query. Não há endpoints de
 alteração/exclusão. A matriz, exceção de identidade global e limitações de histórico
 estão em [audit.md](audit.md). As regras desta seção atualizam as descrições
 anteriores de autoria da auditoria nas tasks de tools e engine.
+
+## TASK-032 — MFA de plataforma
+A reserva histórica de SUPER_ADMIN nas etapas003/005 é resolvida somente pela
+concessão global PlatformAdmin e TOTP confirmado da TASK-032. UserTenant.role não
+ativa esse acesso. Sessão de plataforma separada, expiração1h, anti-replay e
+rate limit persistente. Os campos mfaEnabled/mfaRequired da autenticação clínica
+mantêm o comportamento anterior. Provisionamento, recuperação, chave exclusiva,
+minimização e critérios de saúde estão em [super-admin.md](super-admin.md).

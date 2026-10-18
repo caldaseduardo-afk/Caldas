@@ -7,7 +7,7 @@
     "typecheck": "prisma generate && tsc --noEmit -p tsconfig.test.json",
     "build": "pnpm --filter @atendente/domain build && prisma generate && tsc",
     "generate": "prisma generate",
-    "test": "prisma generate && tsc -p tsconfig.test.json && node --test .test-dist/test/unit.test.js",
+    "test": "tsc -p tsconfig.test.json && node --test .test-dist/test/unit.test.js",
     "test:integration": "prisma generate && tsc -p tsconfig.test.json && node --test .test-dist/test/integration.test.js",
     "db:validate": "prisma validate",
     "db:migrate": "prisma migrate deploy",

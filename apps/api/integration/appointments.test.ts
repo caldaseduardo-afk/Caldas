@@ -16,6 +16,7 @@ import {
   localTime,
 } from '../src/availability/availability.dto';
 import { AppointmentRepository } from '../src/appointments/appointment.repository';
+import { RealtimeEvents } from '../src/realtime/realtime.events';
 import {
   appointmentDto,
   conversionDto,
@@ -708,7 +709,23 @@ test('Consultas: conversão, estados, histórico, isolamento e concorrência Pos
     );
     await t.test(
       'isolamento leitura/cancelamento/remarcação/lista, RBAC e CSRF',
-      async () => {
+      async (t) => {
+        const published: unknown[] = [];
+        const unsubscribe = app
+          .get(RealtimeEvents)
+          .subscribe((event) => published.push(event));
+        t.after(unsubscribe);
+        const foreignBefore = await client.appointment.findUniqueOrThrow({
+          where: { id: foreign.id },
+          select: { status: true },
+        });
+        const confirmationAuditBefore = await client.authEvent.count({
+          where: {
+            tenantId: tb.id,
+            resourceId: foreign.id,
+            type: 'APPOINTMENT_CONFIRMED',
+          },
+        });
         for (const endpoint of [
           `/appointments/${foreign.id}`,
           `/appointments/${foreign.id}/cancel`,
@@ -732,6 +749,30 @@ test('Consultas: conversão, estados, histórico, isolamento e concorrência Pos
             ).status,
             404,
           );
+        assert.equal(
+          (
+            await change(foreign.id, 'CONFIRMED')
+          ).status,
+          404,
+        );
+        assert.deepEqual(
+          await client.appointment.findUniqueOrThrow({
+            where: { id: foreign.id },
+            select: { status: true },
+          }),
+          foreignBefore,
+        );
+        assert.equal(
+          await client.authEvent.count({
+            where: {
+              tenantId: tb.id,
+              resourceId: foreign.id,
+              type: 'APPOINTMENT_CONFIRMED',
+            },
+          }),
+          confirmationAuditBefore,
+        );
+        assert.deepEqual(published, []);
         const list = await request(
           `/appointments?${new URLSearchParams({ startAt: at(1, '00:00'), endAt: at(31, '23:59') })}`,
           a,

@@ -114,6 +114,7 @@ export function createNotificationWorker(
         type: job.name,
         tenantId: String(job.data?.tenantId ?? ''),
         appointmentId: String(job.data?.appointmentId ?? ''),
+        correlationId: String(job.data?.correlationId ?? ''),
         attempt: Number(job.data?.attemptNumber ?? 0),
         scheduledAt: new Date(
           job.timestamp + Number(job.opts.delay ?? 0),
@@ -131,6 +132,9 @@ export function createNotificationWorker(
     notificationLog('job_failed', {
       jobId: job?.id,
       type: job?.name,
+      tenantId: String(job?.data?.tenantId ?? ''),
+      appointmentId: String(job?.data?.appointmentId ?? ''),
+      correlationId: String(job?.data?.correlationId ?? ''),
       errorCode: error.name,
       retry: (job?.attemptsMade ?? 0) < (job?.opts.attempts ?? 1),
     }),

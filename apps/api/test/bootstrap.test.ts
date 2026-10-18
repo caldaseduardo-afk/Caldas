@@ -10,6 +10,7 @@ import { configureApplication } from '../src/bootstrap';
 import { AuthService } from '../src/auth/auth.service';
 import { AuthConfig } from '../src/auth/auth.config';
 import { DatabaseService } from '../src/auth/database.service';
+import { AuthorizationService } from '../src/permissions/authorization.service';
 
 @Controller('private-probe')
 class PrivateProbe {
@@ -29,7 +30,9 @@ test('guard global protege rotas sem opt-in; health permanece público', async (
     controllers: [PrivateProbe],
   })
     .overrideProvider(DatabaseService)
-    .useValue({ client: {} })
+    .useValue({ client: { $queryRaw: async () => [{ '?column?': 1 }] } })
+    .overrideProvider(AuthorizationService)
+    .useValue({ requirePermissions: async () => ({ tenantId: 'test', userId: 'test' }) })
     .overrideProvider(AuthService)
     .useValue({
       authenticate: async () => ({
@@ -56,6 +59,22 @@ test('guard global protege rotas sem opt-in; health permanece público', async (
     assert.deepEqual(await (await fetch(`${url}/health`)).json(), {
       status: 'ok',
     });
+    assert.deepEqual(await (await fetch(`${url}/health/live`)).json(), {
+      status: 'ok',
+    });
+    const ready = await fetch(`${url}/health/ready`);
+    assert.equal(ready.status, 200);
+    assert.deepEqual(await ready.json(), {
+      status: 'ready',
+      dependencies: { database: 'up', rateLimit: 'up' },
+    });
+    assert.equal(
+      ready.headers.get('content-security-policy'),
+      "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'",
+    );
+    assert.equal(ready.headers.get('x-frame-options'), 'DENY');
+    assert.equal(ready.headers.get('x-content-type-options'), 'nosniff');
+    assert.equal(ready.headers.get('referrer-policy'), 'no-referrer');
     for (const route of ['/private-probe', '/auth/me']) {
       assert.equal((await fetch(`${url}${route}`)).status, 401);
     }
@@ -70,6 +89,37 @@ test('guard global protege rotas sem opt-in; health permanece público', async (
       (await fetch(`${url}/tenancy/units`, { headers })).status,
       403,
     );
+  } finally {
+    await app.close();
+  }
+});
+
+test('readiness falha de forma segura quando PostgreSQL está indisponível', async () => {
+  const config = new AuthConfig({
+    AUTH_SECRET: randomBytes(32).toString('hex'),
+    AUTH_ORIGIN: 'http://localhost:3000',
+    NODE_ENV: 'test',
+  });
+  const module = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(DatabaseService)
+    .useValue({ client: { $queryRaw: async () => { throw new Error('private db detail'); } } })
+    .overrideProvider(AuthorizationService)
+    .useValue({ requirePermissions: async () => ({ tenantId: 'test', userId: 'test' }) })
+    .overrideProvider(AuthService)
+    .useValue({ authenticate: async () => { throw new Error('not used'); } })
+    .overrideProvider(AuthConfig)
+    .useValue(config)
+    .compile();
+  const app = module.createNestApplication<NestExpressApplication>({ logger: false, bodyParser: false });
+  configureApplication(app, config);
+  try {
+    await app.listen(0, '127.0.0.1');
+    const response = await fetch(`${await app.getUrl()}/health/ready`);
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), {
+      status: 'not_ready',
+      dependencies: { database: 'down', rateLimit: 'up' },
+    });
   } finally {
     await app.close();
   }

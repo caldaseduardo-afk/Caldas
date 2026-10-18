@@ -17,7 +17,7 @@ export class ConversationIngressService {
     private readonly events: RealtimeEvents,
     private readonly engine: ConversationEngineEnqueuer,
   ) {}
-  async receive(event: InboundMessage) {
+  async receive(event: InboundMessage, correlationId = randomUUID()) {
     const phone = normalizePhone('+' + event.from);
     const metadata = event.metadata ? { ...event.metadata } : undefined;
     if (event.messageType === 'CONTACT' && metadata) {
@@ -112,22 +112,32 @@ export class ConversationIngressService {
                 include: { contact: true },
               });
               if (!phoneChannel)
-                await recordAudit(tx, {
+                await recordAudit(
+                  tx,
+                  {
+                    data: {
+                      tenantId,
+                      resourceId: contact.id,
+                      type: 'CONTACT_CREATED',
+                      changes: { source: 'WHATSAPP' },
+                    },
+                  },
+                  correlationId,
+                  integration.id,
+                );
+              await recordAudit(
+                tx,
+                {
                   data: {
                     tenantId,
-                    resourceId: contact.id,
-                    type: 'CONTACT_CREATED',
-                    changes: { source: 'WHATSAPP' },
+                    resourceId: channel.id,
+                    type: 'CONTACT_CHANNEL_CREATED',
+                    changes: { contactId: contact.id, source: 'WHATSAPP' },
                   },
-                });
-              await recordAudit(tx, {
-                data: {
-                  tenantId,
-                  resourceId: channel.id,
-                  type: 'CONTACT_CHANNEL_CREATED',
-                  changes: { contactId: contact.id, source: 'WHATSAPP' },
                 },
-              });
+                correlationId,
+                integration.id,
+              );
             }
             if (channel.contact.status !== 'ACTIVE')
               return { outcome: 'contact_inactive', tenantId };
@@ -141,6 +151,8 @@ export class ConversationIngressService {
               channel.contactId,
               integration.id,
               pending,
+              undefined,
+              correlationId,
             );
             await tx.conversation.updateMany({
               where: { tenantId, id: conversation.id },
@@ -161,18 +173,23 @@ export class ConversationIngressService {
                 createdAt: await databaseNow(tx),
               },
             });
-            await recordAudit(tx, {
-              data: {
-                tenantId,
-                resourceId: message.id,
-                type: 'MESSAGE_CREATED',
-                changes: {
-                  conversationId: conversation.id,
-                  senderType: 'PATIENT',
-                  messageType: message.messageType,
+            await recordAudit(
+              tx,
+              {
+                data: {
+                  tenantId,
+                  resourceId: message.id,
+                  type: 'MESSAGE_CREATED',
+                  changes: {
+                    conversationId: conversation.id,
+                    senderType: 'PATIENT',
+                    messageType: message.messageType,
+                  },
                 },
               },
-            });
+              correlationId,
+              integration.id,
+            );
             pending.push({
               type: 'message.created',
               tenantId,
@@ -184,7 +201,7 @@ export class ConversationIngressService {
                 tenantId,
                 conversationId: conversation.id,
                 inboundMessageId: message.id,
-                correlationId: randomUUID(),
+                correlationId,
               },
               select: { id: true },
             });

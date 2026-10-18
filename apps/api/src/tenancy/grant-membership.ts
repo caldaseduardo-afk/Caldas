@@ -2,6 +2,7 @@ import { recordAudit } from '@atendente/database';
 import { createDatabaseClient } from '@atendente/database';
 import { normalizeEmail } from '../auth/auth.input';
 import { tenantSelection } from './tenancy.service';
+import { assertHardPlanLimit } from '../plans/plan-usage';
 
 async function main() {
   if (process.env.NODE_ENV !== 'development')
@@ -29,6 +30,7 @@ async function main() {
           );
         return;
       }
+      await assertHardPlanLimit(tx, tenantId, 'maxUsers');
       await tx.userTenant.create({
         data: { userId: user.id, tenantId, role: 'AGENT' },
       });

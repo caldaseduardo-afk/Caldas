@@ -7,6 +7,7 @@ import {
   AuthorizationService,
   authorizedTenantFilter,
 } from '../permissions/authorization.service';
+import { assertHardPlanLimit } from '../plans/plan-usage';
 
 const fields = { id: true, tenantId: true, name: true } as const;
 
@@ -78,6 +79,7 @@ export class UnitRepository {
       this.database,
       this.authorization,
       async (tx, scope) => {
+        if (dto.active) await assertHardPlanLimit(tx, scope.tenantId, 'maxUnits');
         const unit = await tx.unit.create({
           data: {
             name: dto.name,
@@ -119,6 +121,8 @@ export class UnitRepository {
         };
         const before = await tx.unit.findFirst({ where });
         if (!before) throw new NotFoundException('Recurso não encontrado.');
+        if (!before.active && dto.active)
+          await assertHardPlanLimit(tx, scope.tenantId, 'maxUnits');
         const [unit] = await tx.unit.updateManyAndReturn({
           where,
           data: {

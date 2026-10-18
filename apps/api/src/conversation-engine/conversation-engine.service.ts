@@ -463,6 +463,7 @@ export class ConversationEngineService {
       tenantId: grant.tenantId,
       conversationId: grant.conversationId,
       runId: grant.runId,
+      correlationId: grant.correlationId,
       durationMs: Date.now() - started,
       toolCalls,
       ...(errorCode ? { errorCode } : {}),

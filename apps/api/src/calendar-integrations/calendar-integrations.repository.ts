@@ -10,6 +10,7 @@ import {
   authorizedTenantFilter,
 } from '../permissions/authorization.service';
 import type { CalendarIntegrationDto } from './calendar-integration.dto';
+import { assertHardPlanLimit, assertPlanCapability } from '../plans/plan-usage';
 
 const publicFields = {
   id: true,
@@ -52,6 +53,15 @@ export class CalendarIntegrationsRepository {
           }))
         )
           throw new NotFoundException('Recurso não encontrado.');
+        const existing = await tx.calendarIntegration.findUnique({
+          where: { tenantId: scope.tenantId },
+          select: { status: true },
+        });
+        if (dto.status === 'ACTIVE') {
+          await assertPlanCapability(tx, scope.tenantId, 'google_calendar_enabled');
+          if (existing?.status !== 'ACTIVE')
+            await assertHardPlanLimit(tx, scope.tenantId, 'maxActiveIntegrations');
+        }
         const row = await tx.calendarIntegration.upsert({
           where: { tenantId: scope.tenantId },
           create: { tenantId: scope.tenantId, ...dto },

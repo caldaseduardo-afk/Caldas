@@ -8,6 +8,8 @@ import {
   calendarSyncJobId,
   googleCalendarCredentials,
   parseCalendarSyncPayload,
+  messagingLog,
+  notificationLog,
 } from '../src';
 import { randomUUID } from 'node:crypto';
 import { assertDevelopmentSeed } from '../src/development-seed';
@@ -34,6 +36,67 @@ test('URL inválida não expõe credenciais no erro', () => {
       assert.equal('input' in error, false);
       return true;
     },
+  );
+});
+
+test('logs operacionais aplicam allowlist e preservam correlationId sem dados sensíveis', (t) => {
+  const lines: string[] = [];
+  const previous = console.info;
+  console.info = (...values: unknown[]) =>
+    lines.push(values.map(String).join(' '));
+  t.after(() => {
+    console.info = previous;
+  });
+  const correlationId = randomUUID();
+  const sentinels = [
+    'sentinel-password',
+    'sentinel-password-hash',
+    'sentinel-authorization',
+    'sentinel-cookie',
+    'sentinel-access-token',
+    'sentinel-refresh-token',
+    'sentinel-api-key',
+    'sentinel-client-secret',
+    'sentinel-message-body',
+    'sentinel-nested-secret',
+  ];
+  messagingLog('webhook_received', {
+    correlationId,
+    result: 'validated',
+    durationMs: 3,
+    ...{
+      password: sentinels[0],
+      passwordHash: sentinels[1],
+      authorization: sentinels[2],
+      cookie: sentinels[3],
+      accessToken: sentinels[4],
+      refreshToken: sentinels[5],
+      apiKey: sentinels[6],
+      clientSecret: sentinels[7],
+      content: sentinels[8],
+      nested: { secret: sentinels[9] },
+    },
+  } as never);
+  notificationLog('job_completed', {
+    correlationId,
+    outcome: 'SCHEDULED',
+    password: sentinels[0],
+    passwordHash: sentinels[1],
+    authorization: sentinels[2],
+    cookie: sentinels[3],
+    accessToken: sentinels[4],
+    refreshToken: sentinels[5],
+    apiKey: sentinels[6],
+    clientSecret: sentinels[7],
+    content: sentinels[8],
+    nested: { secret: sentinels[9] },
+  } as never);
+  assert.equal(lines.length, 2);
+  for (const value of sentinels)
+    assert.equal(lines.join('\n').includes(value), false);
+  assert.equal(
+    lines.every((line) => line.includes(correlationId)),
+    true,
   );
 });
 

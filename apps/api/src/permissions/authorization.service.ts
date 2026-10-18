@@ -39,6 +39,7 @@ export interface ConversationEngineGrant {
   readonly conversationId: string;
   readonly runId: string;
   readonly leaseOwnerId: string;
+  readonly correlationId: string;
 }
 
 export function isConversationEngineScope(scope: TenantScope) {
@@ -146,7 +147,16 @@ export class AuthorizationService {
       references: (current?.references ?? 0) + 1,
     });
     try {
-      return await auditActorContext.run({ tenantId: grant.tenantId, actorType: 'AI', source: 'AI_ENGINE', actorReferenceId: grant.conversationId, correlationId: grant.runId }, () => engineContext.run(scope, callback));
+      return await auditActorContext.run(
+        {
+          tenantId: grant.tenantId,
+          actorType: 'AI',
+          source: 'AI_ENGINE',
+          actorReferenceId: grant.conversationId,
+          correlationId: grant.correlationId,
+        },
+        () => engineContext.run(scope, callback),
+      );
     } finally {
       const entry = engineScopes.get(scope.sessionId);
       if (!entry || entry.references <= 1) engineScopes.delete(scope.sessionId);
