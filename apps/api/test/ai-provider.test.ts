@@ -11,12 +11,17 @@ import {
   type AIRequest,
 } from '@atendente/domain';
 import { readAIConfiguration, AIConfigResolver } from '../src/ai/ai.config';
-import { prepareAIInput } from '../src/ai/ai-context';
+import { prepareAIInput, sanitizeAIText } from '../src/ai/ai-context';
 import { OpenAIProvider } from '../src/ai/openai.provider';
 import { FakeAIProvider } from '../src/ai/fake-ai.provider';
 import { AIService } from '../src/ai/ai.service';
 import { AIUsageRepository } from '../src/ai/ai-usage.repository';
 import { AuthorizationService } from '../src/permissions/authorization.service';
+import { engineResponseFormat } from '../src/conversation-engine/conversation-engine.output';
+import {
+  CONVERSATION_ENGINE_CAPABILITIES,
+  ToolRegistry,
+} from '../src/tools/tool.schemas';
 
 const env = {
   OPENAI_API_KEY: 'sk-test-only-not-a-real-key',
@@ -520,7 +525,7 @@ test('limites de contexto, roles e correlation rejeitam entradas indevidas', () 
       messages: [],
       correlationId: 'sensitive-correlation',
     },
-    { systemInstructions: 'A'.repeat(16001), messages: [] },
+    { systemInstructions: 'A'.repeat(32001), messages: [] },
     {
       systemInstructions: 'A',
       messages: Array.from({ length: 41 }, () => ({
@@ -534,6 +539,42 @@ test('limites de contexto, roles e correlation rejeitam entradas indevidas', () 
     },
   ])
     assert.throws(() => prepareAIInput(value), fails('AI_BAD_REQUEST'));
+});
+
+test('JSON Schema de saída preserva limites numéricos e rejeita segredos', () => {
+  assert.doesNotThrow(() =>
+    prepareAIInput({
+      systemInstructions: 'A',
+      messages: [],
+      responseFormat: engineResponseFormat,
+    }),
+  );
+  const toolDefinitions = JSON.stringify(
+    new ToolRegistry()
+      .definitions()
+      .filter((tool) => CONVERSATION_ENGINE_CAPABILITIES.includes(tool.name)),
+  );
+  assert.equal(sanitizeAIText(toolDefinitions, [], 32000), toolDefinitions);
+  assert.doesNotThrow(() =>
+    prepareAIInput({
+      systemInstructions: toolDefinitions,
+      messages: [],
+      responseFormat: engineResponseFormat,
+    }),
+  );
+  assert.throws(
+    () =>
+      prepareAIInput({
+        systemInstructions: 'A',
+        messages: [],
+        responseFormat: {
+          type: 'json_schema',
+          name: 'unsafe',
+          schema: { type: 'object', api_key: 'fixture-value' },
+        },
+      }),
+    fails('AI_BAD_REQUEST'),
+  );
 });
 
 test('credenciais serializadas em texto JSON também são redigidas', () => {

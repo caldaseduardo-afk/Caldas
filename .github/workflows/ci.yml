@@ -15,6 +15,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
         with:
           version: 10.30.3
@@ -23,6 +25,12 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Scan Git history for secrets
+        run: >-
+          docker run --rm
+          -v "$GITHUB_WORKSPACE:/repo:ro"
+          zricethezav/gitleaks@sha256:b5918eb91b8d2473cec722f066abb4352e4ffdc4ec9f4283ec143aba9ec9ebc4
+          git /repo --log-opts=--all --redact --no-banner
       - run: pnpm audit
       - run: pnpm db:validate
       - run: pnpm lint

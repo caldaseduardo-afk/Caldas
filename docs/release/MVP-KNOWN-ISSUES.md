@@ -1,93 +1,113 @@
 # MVP — problemas conhecidos do Release Candidate
 
-Reavaliado em 2026-10-18 no checkout local. TASK-035 recebeu `MVP RC BLOCKED`.
-Nenhuma falha local de engenharia foi relatada naquela execução. Este fechamento
-adicionou um ensaio descartável de dump/restore (35 migrations e tenant sintético
-restaurado); não houve alteração de código ou migration. O relatório atualizado
-está em [MVP-FINAL-STATUS.md](MVP-FINAL-STATUS.md).
+Reavaliado em 2026-10-18 durante o fechamento dos gates do MVP. A decisão atual
+continua **MVP NOT READY FOR PILOT** até a infraestrutura externa, CI remota,
+proteção de branch e smoke HTTPS serem comprovados. Ver
+[MVP-FINAL-STATUS.md](MVP-FINAL-STATUS.md) e
+[MVP-PILOT-CHECKLIST.md](MVP-PILOT-CHECKLIST.md).
 
-## BLOCKER
+## BLOCKING
 
-### BLOCKING — falta acceptance E2E conectado do inbound ao resultado
+### Staging, deploy e smoke da Web/API
 
-- **Área:** WhatsApp, Conversation Engine, AIProvider/Tool Gateway, scheduling, Appointment, outbox/notifications, Calendar e dashboard.
-- **Evidência:** `pnpm db:test` passa 303 integrações. `ai-scheduling.test.ts` cobre scheduling/coordinator com DB real; `whatsapp.test.ts` cobre webhook, persistência e processamento; Calendar, notifications e dashboard têm suites próprias. Nenhum executa a mensagem pelo runtime do engine até envio e projeções.
-- **Estado:** BLOCKING. Os ensaios de webhook, engine, scheduling e projeções continuam em suítes separadas; este fechamento não adicionou um aceite único conectado.
-- **Ação:** executar acceptance E2E determinístico em PostgreSQL/Redis que correlacione a mensagem até Appointment, audit, outbox, Calendar e dashboard; em seguida executar o smoke sintético em staging.
+- **Evidência local:** acceptance conectado usa API Nest/HTTP real, PostgreSQL 17,
+  Redis 7.4, AI fake, Tool Gateway, agenda, audit e worker BullMQ. O teste cobre
+  health/ready e isolamento; não inicia o frontend Web nem testa domínio HTTPS.
+- **Falta:** staging provisionado, artefatos/runtime de Web/API/Worker, credenciais
+  sintéticas de provider, smoke com sessão real e callback/entrega externa.
+- **Ação:** provisionar ambiente aprovado; executar os checks de
+  `MVP-PILOT-CHECKLIST.md` e guardar o relatório sem payload pessoal.
 
-### BLOCKING — providers e deployment real não foram validados em staging
+### CI e proteção da branch principal
 
-- **Área:** WhatsApp, AI, Google Calendar, HTTPS e entrega.
-- **Evidência:** providers são fakes/controlados nas suites; não houve callback Meta, AI de staging, Google Calendar real ou deploy no domínio HTTPS.
-- **Estado:** BLOCKING. Nenhum staging, domínio HTTPS, conta de teste ou credencial foi disponibilizado; não há evidência de callback ou entrega real.
-- **Ação:** testar contas/credenciais sintéticas e confirmar callback, entrega, retries/idempotência, WebSocket e ausência de secrets em logs. Não usar dados reais.
+- **Evidência local:** `.github/workflows/ci.yml` contém install congelado,
+  Gitleaks, audit, Prisma validate, lint, typecheck, testes, migrações de teste,
+  browser E2E e build. GitHub informou `main` sem proteção e nenhum workflow/run
+  visível no remoto.
+- **Falta:** workflow publicado no candidato, run verde e status checks marcados
+  como obrigatórios em `main`.
+- **Ação:** publicar o candidato conforme processo do repositório; depois exigir o
+  check `verify` na proteção da branch e verificar configuração/run. Não exigir
+  check antes de ele existir no remoto.
 
-## HIGH
+### Runtime de produção
 
-### BLOCKING — backup externo e metas RPO/RTO sem ensaio
+- **Evidência local:** `pnpm build` e comandos package `start` existem para Web,
+  API e Worker. O Dockerfile atual termina em `pnpm dev`; Compose/Docker não são
+  runtime de produção. Não foi selecionada plataforma ou forma de deploy.
+- **Falta:** runtime imutável e aprovado por serviço, ambiente/secrets/health,
+  migração controlada e rollback ensaiados no destino real.
+- **Ação:** selecionar/provisionar runtime; validar start/health/rollback de Web,
+  API, Worker, PostgreSQL e Redis nesse ambiente. Build local não fecha este gate.
 
-- **Área:** PostgreSQL e recuperação.
-- **Evidência:** nesta revisão, PostgreSQL 17 efêmero recebeu 35 migrations, foi feito dump custom e o restore em database isolado recuperou o tenant sintético. Não foi usado backup externo, e RPO/RTO não foram medidos; o restore local não representa dados ou topologia do piloto.
-- **Estado:** BLOCKING para dados de piloto até o operador configurar cópia externa criptografada, aprovar metas e registrar restore ensaiado com duração/ponto de recuperação.
+### Backup externo e recuperação
 
-### BLOCKING — runtime de produção não existe no Docker atual
+- **Evidência local:** PostgreSQL 17 descartável recebeu 35 migrations, dump
+  custom e restore para outro database com tenant sintético (execução anterior,
+  2026-10-18). Nenhum armazenamento externo foi usado.
+- **Metas propostas:** RPO ≤ 24 h com backup diário criptografado e cópia externa
+  concluída/monitorada; RTO ≤ 4 h como TARGET. Ambos exigem aprovação do operador.
+- **Falta:** provedor/destino, região, criptografia/gestão de chaves, retenção,
+  frequência, dono operacional, restore externo cronometrado e ponto de recuperação
+  demonstrado. RPO/RTO não foram medidos.
 
-- **Área:** deploy.
-- **Evidência:** `Dockerfile`/`compose.yaml` são dev-only (`pnpm dev`). `pnpm build` passa, mas não há artefato runtime production imutável por serviço.
-- **Estado:** BLOCKING para deployment por Docker. `Dockerfile`/Compose permanecem voltados a desenvolvimento; build local não valida processo runtime por serviço.
-- **Ação:** criar/validar artefatos Web/API/Worker e topologia com non-root, secrets, TLS, health checks e rollback antes de deploy Docker.
+## RESOLVED localmente — scan de secrets
 
-### BLOCKING — CI remota/branch protection não comprovadas
+- **Evidência:** Gitleaks 8.24.2 em container por digest analisou todo o histórico,
+  patch rastreado local e arquivos novos de readiness/ignore. O histórico
+  inicialmente acusou uma constante
+  `AUTH_SECRET` no teste `apps/api/test/rate-limit.test.ts:8`; revisão confirmou
+  que é fixture e não credencial operacional. O fingerprint exato está em
+  `.gitleaksignore`; novo scan histórico e scan do diff tiveram zero findings.
+  `.github/workflows/ci.yml` agora repete o scan em CI. O workflow ainda precisa
+  executar remotamente no candidato, conforme o blocker de CI acima. Nenhuma
+  credencial real foi confirmada; nenhum segredo foi impresso.
 
-- **Área:** release process.
-- **Evidência:** `.github/workflows/ci.yml` existe e comandos locais passaram; run no GitHub e proteção de branch não foram observados.
-- **Estado:** BLOCKING para congelar/liberar candidato. A consulta anterior ao GitHub retornou zero runs visíveis; regras de proteção não foram verificadas.
-- **Ação:** rodar workflow no commit candidato e configurar regras obrigatórias antes do piloto.
+## BLOCKING — Isolamento de tenant e autorização em staging
 
-### DEFERRED — OAuth Google e rotação não validados
+- **Evidência local:** acceptance e regressões integradas validam ID conhecido de
+  outro tenant como 404, sem mutação/audit/evento indevido; RBAC, webhook e Tool
+  Gateway também têm testes de integração.
+- **Falta:** smoke da mesma fronteira contra o runtime Web/API implantado.
+- **Ação:** executar fluxo Tenant A/Tenant B no staging com dados sintéticos e
+  guardar status, sem copiar IDs de pacientes ou payloads.
 
-- **Área:** Google Calendar.
-- **Evidência:** testes cobrem provider com credencial configurada/referenciada; não há state/callback OAuth interativo nem rotação automática de refresh token, conforme checklist TASK-034.
-- **Estado:** DEFERRED somente se Google Calendar permanecer desativado no piloto. Se habilitado, torna-se BLOCKING até validar credenciais, callback/renovação e reconciliação em conta de teste.
-- **Ação:** manter a integração desativada ou provisionar/testar o método seguro suportado antes de habilitá-la.
+## RESOLVED localmente; staging ainda requerido
 
-## MEDIUM
+### Fluxo conectado API → Appointment → Worker/Notification
 
-### BLOCKING — logging/redaction não é uniforme entre API e Worker
+- `apps/api/integration/pilot-acceptance.test.ts` cobre webhook HMAC, Contact,
+  Conversation, Message, AIProvider substituído por FakeAIProvider, Engine,
+  Tool Gateway, Patient/Service/Availability, HOLD, confirmação, Appointment,
+  auditoria, notification scheduling/worker, webhook duplicado, handoff/claim e
+  isolamento cross-tenant. O resultado da última execução completa está em
+  `MVP-FINAL-STATUS.md`.
+- O teste é local e determinístico; não comprova envio WhatsApp real ou UI Web.
 
-- **Área:** observabilidade.
-- **Evidência:** IDs de correlação e logs estruturados existem em partes; TASK-034 registra ausência de logger/pipeline uniforme e redaction/correlation API→worker.
-- **Estado:** BLOCKING enquanto mensagens de teste forem recebidas, pois ainda não há evidência consolidada de correlação e redaction ponta a ponta.
-- **Ação:** demonstrar correlação entre API/worker sem payload, telefone, credencial ou conteúdo clínico em logs; definir retenção e responsável operacional.
+### Logs e correlação
 
-### BLOCKING — Browser E2E não usa API real
+- Testes verificam allowlists dos loggers de messaging/notification, ausência de
+  sentinelas de senha/token/cookie/segredo e propagação do correlation ID do
+  webhook para audit, run/uso de IA, log do Engine e audit da consulta.
+- O acceptance valida correlação sem persistir conteúdo de mensagem nos logs. A
+  infraestrutura de coleta/retenção e operador do staging ainda não existem.
 
-- **Área:** Web/Realtime.
-- **Evidência:** 25 testes Playwright passaram com mocks, mas `/realtime` devolveu `ECONNREFUSED localhost:3001`; 21 testes API WebSocket real passaram separadamente.
-- **Estado:** BLOCKING até smoke manual/browser contra Web/API de staging, com sessão real e perfis clínicos sintéticos.
-- **Ação:** rodar smoke browser contra Web/API de teste com sessão real antes do piloto.
+## DEFERRED sob condições
 
-### DEFERRED — crash/shutdown e recuperação de outage ainda são testes separados
+### Google Calendar OAuth/refresh
 
-- **Área:** Worker/API/providers.
-- **Evidência:** retries, Redis vazio/outbox, handlers SIGTERM e falhas de providers cobertos separadamente; sem processo encerrado durante efeito externo/job ativo e verificação de toda a cadeia.
-- **Estado:** DEFERRED para piloto restrito a uma clínica, condicionado a operador acompanhando worker/failed jobs e suspendendo automações se houver anomalia. Tornar BLOCKING antes de ampliar escala ou automatizar além desse limite.
-- **Ação:** ensaiar SIGTERM, restart, backlog e outage/recovery em staging conferindo ledger e efeitos duplicados.
+Permitido somente com integração `DISABLED` e `calendar_provider = NOT_REQUIRED`
+no piloto. Ativar Google torna OAuth/refresh/reconciliação real um gate anterior à
+ativação.
 
-### BLOCKING — secret scan não certifica histórico Git
+### Performance e escala
 
-- **Área:** supply chain.
-- **Evidência:** busca textual atual não encontrou segredo real; `sk-test-only-not-a-real-key` em teste é fixture. `gitleaks` e scanner de histórico não estão disponíveis.
-- **Estado:** BLOCKING antes de inserir qualquer credencial real. A revisão textual não substitui scanner dedicado/histórico; `gitleaks` e `trufflehog` não estão instalados neste ambiente.
-- **Ação:** executar ferramenta dedicada no histórico/branch; rotacionar credencial real imediatamente se encontrada.
+Permitido apenas para piloto pequeno, com limites e paginação existentes e uma
+instância observada. Não escalar horizontalmente até medir latência, filas e
+rate-limit compartilhado.
 
-### DEFERRED — sem budget de performance ou rate limit multi-instância
+### SIGTERM/outage com efeito externo ativo
 
-- **Área:** carga/API.
-- **Evidência:** paginação, agregados, slots e rate limit Redis single API foram exercitados; sem benchmark, metas de latência ou teste multi-instância.
-- **Estado:** DEFERRED apenas para piloto pequeno, com uma instância de API e limites operacionais monitorados; não habilitar escala horizontal antes de medir rate limit compartilhado, latência e carga.
-- **Ação:** medir webhook ACK, slots/dashboard e tráfego interno em staging com volume sintético e duas instâncias antes de expansão.
-
-## LOW
-
-Nenhuma pendência LOW adicional foi necessária para a decisão desta execução.
+Retries, idempotência e recovery de Redis/outbox têm testes; interrupção real
+durante um efeito externo não foi ensaiada. Permitido apenas com operador presente
+monitorando worker/failed jobs e suspendendo automações em anomalia.

@@ -185,7 +185,7 @@ export class ConversationEngineService {
                   timezone: context.tenant.timezone,
                   tools: definitions,
                 })
-              : '') +
+              : `Available tools: ${JSON.stringify(definitions)}`) +
             '\n' +
             [
               'Você é o atendente virtual administrativo de uma clínica.',
@@ -203,7 +203,6 @@ export class ConversationEngineService {
               'Não chame create_hold, release_hold, confirm_appointment, cancel_appointment ou reschedule_appointment em toolCalls; essas ações são executadas pelo workflow.',
               `Data UTC de referência: ${new Date().toISOString()}. Timezone da clínica: ${context.tenant.timezone}.`,
               'Retorne exclusivamente o JSON exigido pelo schema.',
-              `Tools disponíveis: ${JSON.stringify(definitions)}`,
             ].join('\n');
           for (
             let iteration = 0;

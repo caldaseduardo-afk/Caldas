@@ -5,7 +5,7 @@ status atual é `MVP NOT READY FOR PILOT`; os gates marcados como BLOCKING em
 [MVP-FINAL-STATUS.md](MVP-FINAL-STATUS.md) precisam de evidência antes de usar
 contas de teste externas ou dados de uma clínica.
 
-## Perfil e dados do piloto
+## Before deployment
 
 - [ ] Um tenant de clínica, uma unidade e usuários sintéticos com os menores
       papéis necessários (`CLINIC_ADMIN`, `AGENT`); registrar quem responde pela
@@ -18,7 +18,7 @@ contas de teste externas ou dados de uma clínica.
       Google Calendar é opcional; manter `DISABLED` se OAuth/conta de teste não forem
       validados.
 
-## Ambiente e configuração
+### Ambiente e configuração
 
 Todos os serviços devem vir de um runtime de produção imutável ou plataforma
 equivalente aprovada. O `Dockerfile` e `compose.yaml` atuais são de desenvolvimento
@@ -40,7 +40,7 @@ Variáveis condicionais e seus nomes estão listados em `.env.example`; arquivo
 exemplo é documentação, não configuração pronta. Não copiar valores para logs,
 browser ou relatório.
 
-## Gates antes de receber mensagens
+### Gates antes de receber mensagens
 
 - [ ] acceptance E2E conectado WhatsApp → Conversation Engine → Tool Gateway →
       scheduling → Appointment → audit/outbox/Calendar/dashboard aprovado com dados
@@ -62,7 +62,26 @@ browser ou relatório.
       processo; `/health/ready` verifica PostgreSQL e rate limit Redis; isso não
       comprova heartbeat do worker.
 
-## Smoke sintético em staging
+## Deployment
+
+- [ ] Registrar commit e artefacto imutável usado em Web, API e Worker; registrar
+      status das migrations antes/depois e procedimento de rollback compatível.
+- [ ] Confirmar secrets e flags no secret manager, sem exportar valores para shell
+      history, logs ou relatório.
+- [ ] Habilitar somente integrações já validadas. Sem provider externo testado,
+      usar apenas o fluxo local de acceptance com fakes e não chamar isso de deploy.
+
+## After deployment
+
+- [ ] Confirmar os três processos Web/API/Worker e versões em execução.
+- [ ] Confirmar `/health/live`, `/health/ready`, Postgres/Redis e heartbeat/failed
+      jobs por usuário autorizado.
+- [ ] Registrar resultado e decidir go/no-go com operador responsável antes de
+      receber mensagens externas.
+
+## Smoke
+
+### Procedimento sintético em staging
 
 Executar sem dados de pacientes reais e guardar timestamps, commit e resultado sem
 payload sensível:
@@ -87,7 +106,13 @@ payload sensível:
 10. Aprovar go/no-go com responsável clínico e operador; caso contrário, desativar
     integrações e manter somente dados sintéticos.
 
-## Observabilidade e acompanhamento manual
+Registrar o resultado em
+[MVP-STAGING-SMOKE-REPORT.md](MVP-STAGING-SMOKE-REPORT.md), incluindo timestamp
+UTC, SHA do commit, URL/identificador do ambiente sem credenciais, resultado de
+cada check e correlation IDs sintéticos. Se staging não estiver provisionado,
+marcar os checks como `NOT RUN` e manter o blocker; o teste local não o substitui.
+
+## Monitoring
 
 Durante o piloto, operador nomeado acompanha continuamente `/health/ready`,
 heartbeat do worker, backlog/failed jobs, erros de webhook, erros/latência de AI,
@@ -96,7 +121,7 @@ tenant. Interromper entrada/automação e iniciar o runbook quando API/DB/Redis
 ficarem indisponíveis, houver job repetido, appointment duplicado, falha de
 assinatura, indício cross-tenant ou segredo/conteúdo sensível em logs.
 
-## Kill switches disponíveis e limites
+### Kill switches disponíveis e limites
 
 - IA/conversation engine: definir `CONVERSATION_ENGINE_ENABLED=false` na API e
   reiniciar a API; isso desliga o runtime automatizado, não apaga mensagens ou
@@ -113,7 +138,7 @@ assinatura, indício cross-tenant ou segredo/conteúdo sensível em logs.
 - Não há, nesta versão, um kill switch único por tenant que pause todas as
   automações. Não editar diretamente o banco para improvisar um switch.
 
-## Rollback e recuperação
+## Rollback
 
 1. Desabilitar AI runtime e WhatsApp outbound pelos controles acima; quando a
    integridade estiver incerta, parar o worker e registrar a hora.

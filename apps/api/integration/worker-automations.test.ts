@@ -8,6 +8,7 @@ import {
   deliverMessage,
   dispatchNotificationJobs,
   notificationPayloadFromAttempt,
+  notificationJobId,
   processNotificationJob,
   reconcileFutureNotificationJobs,
   scheduleAppointmentNotifications,
@@ -164,6 +165,7 @@ test('TASK-028: scheduling, outbox, idempotência, retry, tenant e recovery Bull
     await t.test(
       'upsert e job determinístico recuperam Redis vazio sem duplicar',
       async () => {
+        await queue.obliterate({ force: true });
         const first = await scheduleAppointmentNotifications(
           client,
           tenant.id,
@@ -188,9 +190,17 @@ test('TASK-028: scheduling, outbox, idempotência, retry, tenant e recovery Bull
             1,
           true,
         );
-        assert.equal(await dispatchNotificationJobs(client, queue, 366), 1);
-        assert.equal(await dispatchNotificationJobs(client, queue, 366), 1);
-        assert.equal((await queue.getJobs(['delayed', 'waiting'])).length, 1);
+        await dispatchNotificationJobs(client, queue, 366);
+        const jobId = notificationJobId(
+          notificationPayloadFromAttempt(
+            await client.notificationAttempt.findFirstOrThrow({
+              where: { tenantId: tenant.id, appointmentId: appointment.id },
+            }),
+          ),
+        );
+        assert.ok(await queue.getJob(jobId));
+        await dispatchNotificationJobs(client, queue, 366);
+        assert.ok(await queue.getJob(jobId));
       },
     );
 

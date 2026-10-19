@@ -25,8 +25,9 @@ function keys(value: Record<string, unknown>, allowed: string[]) {
 export function sanitizeAIText(
   value: unknown,
   secrets: readonly string[] = [],
+  maxLength = 16000,
 ): string {
-  if (typeof value !== 'string' || !value.trim() || value.length > 16000)
+  if (typeof value !== 'string' || !value.trim() || value.length > maxLength)
     return bad();
   let text = value;
   for (const secret of secrets)
@@ -41,7 +42,7 @@ export function sanitizeAIText(
     .replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, '[DOCUMENT]')
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[EMAIL]')
     .replace(
-      /(?:\+?55\s*)?\(?\d{2}\)?[\s.-]*\d{4,5}[\s.-]*\d{4}\b/g,
+      /(?<!\d)(?:\+?55\s*)?\(?\d{2}\)?(?:\s+|[-.])\d{4,5}(?:\s*[-.]\s*|\s+)\d{4}\b|(?<!\d)(?:\+?55)?\d{10,11}\b/g,
       '[PHONE]',
     );
 }
@@ -67,7 +68,11 @@ export function prepareAIInput(
       content: sanitizeAIText(message.content, secrets),
     };
   });
-  const systemInstructions = sanitizeAIText(v.systemInstructions, secrets);
+  const systemInstructions = sanitizeAIText(
+    v.systemInstructions,
+    secrets,
+    32000,
+  );
   if (
     systemInstructions.length +
       messages.reduce((sum, m) => sum + m.content.length, 0) >
@@ -101,11 +106,12 @@ export function prepareAIInput(
       } catch {
         return bad();
       }
-      if (
-        serialized.length > 16000 ||
-        sanitizeAIText(serialized, secrets) !== serialized
-      )
-        return bad();
+      const schemaContainsSecret =
+        secrets.some((secret) => secret && serialized.includes(secret)) ||
+        /\bsk-[A-Za-z0-9_-]+\b|\bBearer\s+[^\s,;]+|["']?\b(password(?:_?hash)?|senha|(?:client[_-]?)?secret|(?:access[_-]?|refresh[_-]?)?token|authorization|api[_-]?key)["']?\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;}]+)/i.test(
+          serialized,
+        );
+      if (serialized.length > 16000 || schemaContainsSecret) return bad();
       responseFormat = {
         type: 'json_schema',
         name: f.name,

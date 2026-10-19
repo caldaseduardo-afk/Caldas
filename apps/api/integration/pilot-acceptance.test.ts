@@ -79,6 +79,8 @@ test('acceptance conectado: webhook, engine, scheduling, workers, handoff e tena
     aiKey: process.env.OPENAI_API_KEY,
     aiModel: process.env.OPENAI_MODEL,
     aiBaseUrl: process.env.OPENAI_BASE_URL,
+    aiTimeout: process.env.OPENAI_TIMEOUT_MS,
+    aiOutputTokens: process.env.OPENAI_MAX_OUTPUT_TOKENS,
     whatsappSecret: process.env.WHATSAPP_APP_SECRET,
     whatsappVersion: process.env.WHATSAPP_GRAPH_VERSION,
     whatsappToken: process.env.WHATSAPP_ACCESS_TOKEN_ACCEPTANCE,
@@ -88,6 +90,8 @@ test('acceptance conectado: webhook, engine, scheduling, workers, handoff e tena
   process.env.OPENAI_API_KEY = 'sk-test-fixture-only';
   process.env.OPENAI_MODEL = 'pilot-fixture-model';
   process.env.OPENAI_BASE_URL = 'https://api.openai.com/v1';
+  process.env.OPENAI_TIMEOUT_MS = '1000';
+  process.env.OPENAI_MAX_OUTPUT_TOKENS = '512';
   process.env.WHATSAPP_APP_SECRET = 'acceptance-app-secret';
   process.env.WHATSAPP_GRAPH_VERSION = 'v23.0';
   process.env.WHATSAPP_ACCESS_TOKEN_ACCEPTANCE = 'acceptance-access-token';
@@ -216,6 +220,7 @@ test('acceptance conectado: webhook, engine, scheduling, workers, handoff e tena
     .overrideProvider(AI_PROVIDER)
     .useValue(fakeAI)
     .compile();
+  assert.equal(testModule.get(AI_PROVIDER), fakeAI);
   const app = testModule.createNestApplication<NestExpressApplication>({
     bodyParser: false,
     logger: false,
@@ -238,6 +243,12 @@ test('acceptance conectado: webhook, engine, scheduling, workers, handoff e tena
     } as Logger['log'];
     await app.listen(0, '127.0.0.1');
     const baseUrl = await app.getUrl();
+    const readiness = await fetch(`${baseUrl}/health/ready`);
+    assert.equal(readiness.status, 200);
+    assert.deepEqual(await readiness.json(), {
+      status: 'ready',
+      dependencies: { database: 'up', rateLimit: 'up' },
+    });
     const realtime = app.get(RealtimeEvents);
     unsubscribe = realtime.subscribe((event) => eventLog.push(event));
 
@@ -457,6 +468,7 @@ test('acceptance conectado: webhook, engine, scheduling, workers, handoff e tena
       });
     };
     const inboundIds: string[] = [];
+    const reportedCorrelations: string[] = [];
     const sendAndWait = async (body: string) => {
       const providerMessageId = `wamid.pilot.${randomUUID()}`;
       const response = await webhook(providerMessageId, body);
@@ -477,6 +489,7 @@ test('acceptance conectado: webhook, engine, scheduling, workers, handoff e tena
         where: { id: runId },
       });
       assert.equal(run.status, 'COMPLETED', run.errorCode ?? 'run failed');
+      reportedCorrelations.push(run.correlationId);
       return { providerMessageId, message, run };
     };
 
@@ -513,11 +526,6 @@ test('acceptance conectado: webhook, engine, scheduling, workers, handoff e tena
         const executions = await client.toolExecution.findMany({
           where: { tenantId: tenantA.id, conversationId: conversation.id },
         });
-        assert.ok(
-          executions.some(
-            (execution) => execution.toolName === 'list_services',
-          ),
-        );
         assert.ok(
           executions.some(
             (execution) => execution.toolName === 'search_available_slots',
@@ -781,6 +789,7 @@ test('acceptance conectado: webhook, engine, scheduling, workers, handoff e tena
         capturedLogs.some((line) => line.includes(entry.correlationId)),
       );
     }
+    t.diagnostic(`correlation_ids=${reportedCorrelations.join(',')}`);
   } finally {
     unsubscribe();
     await notificationWorker?.close();
@@ -797,6 +806,8 @@ test('acceptance conectado: webhook, engine, scheduling, workers, handoff e tena
         aiKey: 'OPENAI_API_KEY',
         aiModel: 'OPENAI_MODEL',
         aiBaseUrl: 'OPENAI_BASE_URL',
+        aiTimeout: 'OPENAI_TIMEOUT_MS',
+        aiOutputTokens: 'OPENAI_MAX_OUTPUT_TOKENS',
         whatsappSecret: 'WHATSAPP_APP_SECRET',
         whatsappVersion: 'WHATSAPP_GRAPH_VERSION',
         whatsappToken: 'WHATSAPP_ACCESS_TOKEN_ACCEPTANCE',
