@@ -28,6 +28,7 @@ export {
   PERMISSIONS,
   ROLES,
   OPERATIONAL_ROLES,
+  ROLE_PERMISSIONS,
   type PermissionName,
 } from './rbac-catalog';
 
@@ -53,6 +54,12 @@ export {
   subscribeHumanSlaUpdates,
 } from './human-sla-queue';
 export { WhatsAppProvider, whatsappAccessToken } from './whatsapp-provider';
+export {
+  encryptTenantCredential,
+  decryptTenantCredential,
+  resolveIntegrationAccessToken,
+  type EncryptedCredential,
+} from './tenant-credentials';
 export * from './messaging-delivery';
 export * from './messaging-queue';
 export * from './conversation-engine-queue';
@@ -74,6 +81,11 @@ export {
 } from '@atendente/domain';
 
 export * from './audit';
-export { AuditActorType, AuditSource, AuditResourceType, AuthEventType } from './generated/prisma/client';
+export {
+  AuditActorType,
+  AuditSource,
+  AuditResourceType,
+  AuthEventType,
+} from './generated/prisma/client';
 
 export * from './platform-health';

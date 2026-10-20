@@ -32,6 +32,7 @@ import {
   appointmentWhere,
   appointmentFields,
   appointmentSummary,
+  appointmentCalendarSummary,
   createPermissions,
   readPermissions,
   releasePermissions,
@@ -235,6 +236,22 @@ export class AppointmentRepository {
         endAt: { gt: startAt },
       },
       select: appointmentSummary,
+      orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
+    });
+  }
+  async calendar(query: ReturnType<typeof appointmentsQuery>) {
+    const scope = await this.authorization.requirePermissions(
+      ...readPermissions,
+    );
+    const { startAt, endAt, ...filter } = query;
+    return this.database.client.appointment.findMany({
+      where: {
+        ...appointmentWhere(scope, readPermissions),
+        ...filter,
+        startAt: { lt: endAt },
+        endAt: { gt: startAt },
+      },
+      select: appointmentCalendarSummary,
       orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
     });
   }

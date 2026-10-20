@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { AIProviderError, type AIModelConfig } from '@atendente/domain';
+import { decryptTenantCredential } from '@atendente/database';
+import { DatabaseService } from '../auth/database.service';
 export interface AIConfiguration {
   apiKey: string;
   baseURL: string;
@@ -9,7 +11,10 @@ export interface AIConfiguration {
   maxRetryDelayMs: number;
   modelConfig: AIModelConfig;
 }
-export function readAIConfiguration(env: NodeJS.ProcessEnv): AIConfiguration {
+export function readAIConfiguration(
+  env: NodeJS.ProcessEnv,
+  providedApiKey = env.OPENAI_API_KEY?.trim(),
+): AIConfiguration {
   const fail = (): never => {
     throw new AIProviderError('AI_CONFIG_ERROR');
   };
@@ -29,7 +34,7 @@ export function readAIConfiguration(env: NodeJS.ProcessEnv): AIConfiguration {
       ? value
       : fail();
   };
-  const apiKey = env.OPENAI_API_KEY?.trim();
+  const apiKey = providedApiKey?.trim();
   const model = env.OPENAI_MODEL?.trim();
   if (!apiKey || !model || !/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/.test(model))
     return fail();
@@ -70,14 +75,32 @@ export function readAIConfiguration(env: NodeJS.ProcessEnv): AIConfiguration {
     },
   };
 }
-/** Global today; replace this resolver with authorized tenant configuration in TASK-027. */
 @Injectable()
 export class AIConfigResolver {
-  resolve(): AIConfiguration {
-    return readAIConfiguration(process.env);
+  constructor(private readonly database: DatabaseService) {}
+  async resolve(tenantId: string): Promise<AIConfiguration> {
+    const credential =
+      await this.database.client.aIProviderCredential.findUnique({
+        where: { tenantId },
+        select: { ciphertext: true, nonce: true, authTag: true },
+      });
+    if (!credential) throw new AIProviderError('AI_CONFIG_ERROR');
+    try {
+      const apiKey = decryptTenantCredential(
+        credential,
+        tenantId,
+        'OPENAI_API_KEY',
+      );
+      return readAIConfiguration(process.env, apiKey);
+    } catch {
+      throw new AIProviderError('AI_CONFIG_ERROR');
+    }
+  }
+  modelConfiguration(): AIModelConfig {
+    return readAIConfiguration(process.env, 'configuration-only').modelConfig;
   }
   allowedModels(): readonly string[] {
-    const current = this.resolve().modelConfig.model;
+    const current = this.modelConfiguration().model;
     const configured = (process.env.OPENAI_ALLOWED_MODELS ?? '')
       .split(',')
       .map((value) => value.trim())

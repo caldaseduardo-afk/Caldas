@@ -1,4 +1,7 @@
-import { PlatformAuthService, type PlatformScope } from '../platform-admin/platform-auth.service';
+import {
+  PlatformAuthService,
+  type PlatformScope,
+} from '../platform-admin/platform-auth.service';
 import {
   CanActivate,
   Optional,
@@ -17,6 +20,8 @@ import { AuthService, type Identity } from './auth.service';
 export const Public = () => SetMetadata('auth:public', true);
 export interface AuthRequest extends Request {
   platform?: PlatformScope;
+  platformTenantAccessId?: string;
+  platformTenantAccessReason?: string;
   identity?: Identity;
   sessionToken?: string;
   sessionId?: string;
@@ -58,14 +63,40 @@ export class AuthGuard implements CanActivate {
       ])
     )
       return true;
-    if (this.reflector.getAllAndOverride<boolean>('platform:required', [context.getHandler(), context.getClass()])) {
-      const platformToken = this.platformAuth && parse(request.headers.cookie ?? '')[this.platformAuth.cookieName];
+    if (
+      this.reflector.getAllAndOverride<boolean>('platform:required', [
+        context.getHandler(),
+        context.getClass(),
+      ])
+    ) {
+      const platformToken =
+        this.platformAuth &&
+        parse(request.headers.cookie ?? '')[this.platformAuth.cookieName];
       if (!platformToken || !this.platformAuth) {
         const clinicalToken = readToken(request, this.config);
-        if (clinicalToken) { await this.auth.authenticate(clinicalToken); throw new ForbiddenException('Acesso exclusivo da plataforma.'); }
+        if (clinicalToken) {
+          await this.auth.authenticate(clinicalToken);
+          throw new ForbiddenException('Acesso exclusivo da plataforma.');
+        }
         throw new UnauthorizedException();
       }
       request.platform = await this.platformAuth.authenticate(platformToken);
+      return true;
+    }
+    const platformTenantToken =
+      this.platformAuth &&
+      parse(request.headers.cookie ?? '')[
+        this.platformAuth.tenantAccessCookieName
+      ];
+    if (platformTenantToken) {
+      if (!this.platformAuth) throw new UnauthorizedException();
+      const access =
+        await this.platformAuth.authenticateTenantAccess(platformTenantToken);
+      request.identity = access.identity;
+      request.sessionId = access.sessionId;
+      request.activeTenantId = access.tenantId;
+      request.platformTenantAccessId = access.accessId;
+      request.platformTenantAccessReason = access.reason;
       return true;
     }
     const token = readToken(request, this.config);

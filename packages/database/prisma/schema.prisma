@@ -10,6 +10,7 @@ datasource db {
 }
 
 model Tenant {
+  platformTenantAccesses PlatformTenantAccess[]
   subscription                 TenantSubscription?
   calendarIntegration           CalendarIntegration?
   calendarSyncAttempts          CalendarSyncAttempt[]
@@ -26,6 +27,7 @@ model Tenant {
   toolExecutions               ToolExecution[]
   aiUsages                     AIUsage[]
   integrations                 Integration[]
+  aiProviderCredential         AIProviderCredential?
   humanSlaRule                 HumanSlaRule?
   humanSlaCycles               HumanSlaCycle[]
   humanSlaJobs                 HumanSlaJob[]
@@ -129,6 +131,10 @@ enum AuthEventType {
   PLATFORM_LOGIN_FAILED
   PLATFORM_LOGOUT
   PLATFORM_TENANT_VIEWED
+  PLATFORM_TENANT_ACCESS_STARTED
+  PLATFORM_TENANT_ACCESS_ENDED
+  PLATFORM_TENANT_ACCESS_READ
+  PLATFORM_TENANT_ACCESS_WRITE
   CALENDAR_INTEGRATION_CONFIGURED
   CALENDAR_CONNECTION_TESTED
   CALENDAR_SYNC_SUCCEEDED
@@ -224,6 +230,7 @@ enum AuthEventType {
 model User {
   platformAdmin PlatformAdmin?
   platformSessions PlatformSession[]
+  platformTenantAccesses PlatformTenantAccess[]
   id                               String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                            String                    @unique
   name                             String
@@ -265,6 +272,7 @@ model AuthSession {
 
 enum AuditActorType {
   USER
+  PLATFORM_ADMIN
   AI
   SYSTEM
   AUTOMATION
@@ -275,6 +283,7 @@ enum AuditActorType {
 enum AuditSource {
   WEB
   API
+  PLATFORM
   WHATSAPP
   AI_ENGINE
   WORKER
@@ -1432,6 +1441,9 @@ model Integration {
   externalAccountId    String              @map("external_account_id") @db.VarChar(32)
   status               IntegrationStatus   @default(ACTIVE)
   credentialsReference String              @map("credentials_reference") @db.VarChar(96)
+  credentialCiphertext String?             @map("credential_ciphertext") @db.Text
+  credentialNonce     String?              @map("credential_nonce") @db.VarChar(32)
+  credentialAuthTag   String?              @map("credential_auth_tag") @db.VarChar(32)
   settings             Json?               @db.JsonB
   createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt            DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -1442,6 +1454,19 @@ model Integration {
   @@unique([provider, phoneNumberId])
   @@index([tenantId, type, status])
   @@map("integrations")
+}
+
+model AIProviderCredential {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String   @unique @map("tenant_id") @db.Uuid
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  ciphertext String   @db.Text
+  nonce      String   @db.VarChar(32)
+  authTag    String   @map("auth_tag") @db.VarChar(32)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("ai_provider_credentials")
 }
 
 // Technical metadata only; no prompt, output, key or patient identifiers.
@@ -1706,6 +1731,27 @@ model PlatformSession {
   verifiedAt DateTime @default(now()) @map("verified_at") @db.Timestamptz(3)
   expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
   user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  tenantAccesses PlatformTenantAccess[]
   @@index([userId, expiresAt])
   @@map("platform_sessions")
+}
+
+model PlatformTenantAccess {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tokenHash         String          @unique @map("token_hash") @db.Char(64)
+  platformSessionId String          @map("platform_session_id") @db.Uuid
+  userId            String          @map("user_id") @db.Uuid
+  tenantId          String          @map("tenant_id") @db.Uuid
+  reason            String          @db.VarChar(500)
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt         DateTime        @map("expires_at") @db.Timestamptz(3)
+  revokedAt         DateTime?       @map("revoked_at") @db.Timestamptz(3)
+  platformSession   PlatformSession @relation(fields: [platformSessionId], references: [id], onDelete: Cascade)
+  user              User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  tenant            Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@index([platformSessionId, revokedAt, expiresAt])
+  @@index([tenantId, createdAt])
+  @@index([userId, createdAt])
+  @@map("platform_tenant_accesses")
 }

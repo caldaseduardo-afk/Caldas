@@ -7,7 +7,9 @@ import {
 } from '@nestjs/common';
 import { Prisma, recordAudit } from '@atendente/database';
 import { DatabaseService } from '../auth/database.service';
+import { RealtimeEvents } from '../realtime/realtime.events';
 import { AuthConfig } from '../auth/auth.config';
+import { Optional } from '@nestjs/common';
 import { PasswordBusyError, verifyPassword } from '../auth/password';
 import {
   decryptSecret,
@@ -22,6 +24,9 @@ export interface PlatformScope {
 }
 export const platformTokenHash = (token: string) =>
   createHash('sha256').update(token).digest('hex');
+const platformMfaDisabled = () =>
+  process.env.NODE_ENV === 'development' &&
+  process.env.PLATFORM_MFA_DISABLED === 'true';
 
 /** Dedicated grant + MFA session. No UserTenant role or client-provided scope is trusted. */
 export async function requirePlatform(
@@ -41,9 +46,10 @@ export async function requirePlatform(
     !session ||
     session.user.status !== 'ACTIVE' ||
     !grant?.active ||
-    !grant.enrolledAt ||
-    !grant.encryptedSecret ||
-    session.verifiedAt < grant.enrolledAt
+    (!platformMfaDisabled() &&
+      (!grant.enrolledAt ||
+        !grant.encryptedSecret ||
+        session.verifiedAt < grant.enrolledAt))
   )
     throw new ForbiddenException('Acesso de plataforma indisponível.');
   return { userId: session.userId, sessionId: session.id };
@@ -57,7 +63,13 @@ export class PlatformAuthService {
   get cookieName() {
     return this.config.secure ? '__Host-platform_session' : 'platform_session';
   }
-  constructor(private readonly database: DatabaseService) {}
+  get tenantAccessCookieName() {
+    return this.config.secure ? '__Host-platform_tenant' : 'platform_tenant';
+  }
+  constructor(
+    private readonly database: DatabaseService,
+    @Optional() private readonly events?: RealtimeEvents,
+  ) {}
 
   private async credentials(email: string, password: string, ip: string) {
     for (const [value, maximum] of [
@@ -162,9 +174,15 @@ export class PlatformAuthService {
     });
   }
 
-  async login(email: string, password: string, code: string, ip: string) {
+  async login(
+    email: string,
+    password: string,
+    code: string | undefined,
+    ip: string,
+  ) {
     const user = await this.credentials(email, password, ip);
     const token = randomBytes(32).toString('base64url');
+    const mfaDisabled = platformMfaDisabled();
     const success = await this.database.client.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT user_id FROM platform_admins WHERE user_id = ${user.id}::uuid FOR UPDATE`;
       const grant = await tx.platformAdmin.findUnique({
@@ -174,12 +192,14 @@ export class PlatformAuthService {
         where: { id: user.id },
         select: { status: true, passwordHash: true },
       });
-      const step =
-        grant?.active &&
-        grant.enrolledAt &&
-        grant.encryptedSecret &&
-        currentUser?.status === 'ACTIVE' &&
-        currentUser.passwordHash === user.passwordHash
+      const step = mfaDisabled
+        ? null
+        : grant?.active &&
+            grant.enrolledAt &&
+            grant.encryptedSecret &&
+            code &&
+            currentUser?.status === 'ACTIVE' &&
+            currentUser.passwordHash === user.passwordHash
           ? verifyTotp(
               decryptSecret(grant.encryptedSecret, user.id),
               code,
@@ -187,16 +207,22 @@ export class PlatformAuthService {
               grant.lastStep,
             )
           : null;
-      if (step === null) {
+      if (
+        !grant?.active ||
+        currentUser?.status !== 'ACTIVE' ||
+        currentUser.passwordHash !== user.passwordHash ||
+        (!mfaDisabled && step === null)
+      ) {
         await recordAudit(tx, {
           data: { type: 'PLATFORM_LOGIN_FAILED', userId: user.id },
         });
         return false;
       }
-      await tx.platformAdmin.update({
-        where: { userId: user.id },
-        data: { lastStep: BigInt(step) },
-      });
+      if (step !== null)
+        await tx.platformAdmin.update({
+          where: { userId: user.id },
+          data: { lastStep: BigInt(step) },
+        });
       await tx.platformSession.create({
         data: {
           userId: user.id,
@@ -205,7 +231,11 @@ export class PlatformAuthService {
         },
       });
       await recordAudit(tx, {
-        data: { type: 'PLATFORM_LOGIN_SUCCEEDED', userId: user.id },
+        data: {
+          type: 'PLATFORM_LOGIN_SUCCEEDED',
+          userId: user.id,
+          newValues: { mfaVerified: !mfaDisabled },
+        },
       });
       return true;
     });
@@ -228,8 +258,226 @@ export class PlatformAuthService {
     });
   }
 
+  async startTenantAccess(
+    scope: PlatformScope,
+    tenantId: string,
+    reason: string,
+  ) {
+    const token = randomBytes(32).toString('base64url');
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+    const result = await this.database.client.$transaction(async (tx) => {
+      await requirePlatform(tx, scope);
+      const tenant = await tx.tenant.findFirst({
+        where: { id: tenantId, status: 'ACTIVE' },
+        select: { id: true, name: true, timezone: true },
+      });
+      if (!tenant) throw new ForbiddenException('Clínica indisponível.');
+      const previous = await tx.platformTenantAccess.findMany({
+        where: { platformSessionId: scope.sessionId, revokedAt: null },
+        select: { id: true, tenantId: true, reason: true },
+      });
+      await tx.platformTenantAccess.updateMany({
+        where: { platformSessionId: scope.sessionId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      for (const old of previous)
+        await recordAudit(
+          tx,
+          {
+            data: {
+              type: 'PLATFORM_TENANT_ACCESS_ENDED',
+              tenantId: old.tenantId,
+              resourceId: old.tenantId,
+              metadata: {
+                accessId: old.id,
+                reason: old.reason,
+                replaced: true,
+              },
+            },
+          },
+          {
+            tenantId: old.tenantId,
+            actorType: 'PLATFORM_ADMIN',
+            actorUserId: scope.userId,
+            source: 'PLATFORM',
+          },
+        );
+      const grant = await tx.platformTenantAccess.create({
+        data: {
+          tokenHash: platformTokenHash(token),
+          platformSessionId: scope.sessionId,
+          userId: scope.userId,
+          tenantId,
+          reason,
+          expiresAt,
+        },
+      });
+      await recordAudit(
+        tx,
+        {
+          data: {
+            type: 'PLATFORM_TENANT_ACCESS_STARTED',
+            tenantId,
+            resourceId: tenantId,
+            metadata: {
+              accessId: grant.id,
+              reason,
+              expiresAt: expiresAt.toISOString(),
+            },
+          },
+        },
+        {
+          tenantId,
+          actorType: 'PLATFORM_ADMIN',
+          actorUserId: scope.userId,
+          source: 'PLATFORM',
+        },
+      );
+      return { accessId: grant.id, tenant, expiresAt };
+    });
+    this.events?.invalidateSession(scope.sessionId);
+    return { token, ...result };
+  }
+
+  async authenticateTenantAccess(token: string) {
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw new UnauthorizedException();
+    return this.database.client.$transaction(async (tx) => {
+      const access = await tx.platformTenantAccess.findUnique({
+        where: { tokenHash: platformTokenHash(token) },
+        include: {
+          user: { select: { id: true, email: true, name: true, status: true } },
+          tenant: { select: { id: true, name: true, status: true } },
+          platformSession: { select: { id: true, userId: true } },
+        },
+      });
+      if (
+        !access ||
+        access.revokedAt ||
+        access.expiresAt <= new Date() ||
+        access.tenant.status !== 'ACTIVE' ||
+        access.user.status !== 'ACTIVE'
+      )
+        throw new UnauthorizedException();
+      await requirePlatform(tx, {
+        userId: access.userId,
+        sessionId: access.platformSessionId,
+      });
+      if (access.platformSession.userId !== access.userId)
+        throw new UnauthorizedException();
+      return {
+        accessId: access.id,
+        sessionId: access.platformSessionId,
+        tenantId: access.tenantId,
+        tenantName: access.tenant.name,
+        reason: access.reason,
+        identity: {
+          id: access.user.id,
+          email: access.user.email,
+          name: access.user.name,
+        },
+      };
+    });
+  }
+
+  async tenantAccessStatus(scope: PlatformScope) {
+    return this.database.client.$transaction(async (tx) => {
+      await requirePlatform(tx, scope);
+      const access = await tx.platformTenantAccess.findFirst({
+        where: {
+          platformSessionId: scope.sessionId,
+          userId: scope.userId,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+          tenant: { status: 'ACTIVE' },
+        },
+        include: { tenant: { select: { id: true, name: true } } },
+      });
+      return access
+        ? { tenant: access.tenant, expiresAt: access.expiresAt }
+        : null;
+    });
+  }
+
+  async endTenantAccess(scope: PlatformScope, token?: string) {
+    const result = await this.database.client.$transaction(async (tx) => {
+      await requirePlatform(tx, scope);
+      const access =
+        token && /^[A-Za-z0-9_-]{43}$/.test(token)
+          ? await tx.platformTenantAccess.findFirst({
+              where: {
+                tokenHash: platformTokenHash(token),
+                platformSessionId: scope.sessionId,
+                userId: scope.userId,
+                revokedAt: null,
+              },
+            })
+          : null;
+      if (!access) return { ended: false };
+      await tx.platformTenantAccess.update({
+        where: { id: access.id },
+        data: { revokedAt: new Date() },
+      });
+      await recordAudit(
+        tx,
+        {
+          data: {
+            type: 'PLATFORM_TENANT_ACCESS_ENDED',
+            tenantId: access.tenantId,
+            resourceId: access.tenantId,
+            metadata: { accessId: access.id, reason: access.reason },
+          },
+        },
+        {
+          tenantId: access.tenantId,
+          actorType: 'PLATFORM_ADMIN',
+          actorUserId: scope.userId,
+          source: 'PLATFORM',
+        },
+      );
+      return { ended: true };
+    });
+    if (result.ended) this.events?.invalidateSession(scope.sessionId);
+    return result;
+  }
+
   async logout(scope: PlatformScope) {
     await this.database.client.$transaction(async (tx) => {
+      await requirePlatform(tx, scope);
+      const accesses = await tx.platformTenantAccess.findMany({
+        where: {
+          platformSessionId: scope.sessionId,
+          userId: scope.userId,
+          revokedAt: null,
+        },
+        select: { id: true, tenantId: true, reason: true },
+      });
+      for (const access of accesses) {
+        await tx.platformTenantAccess.update({
+          where: { id: access.id },
+          data: { revokedAt: new Date() },
+        });
+        await recordAudit(
+          tx,
+          {
+            data: {
+              type: 'PLATFORM_TENANT_ACCESS_ENDED',
+              tenantId: access.tenantId,
+              resourceId: access.tenantId,
+              metadata: {
+                accessId: access.id,
+                reason: access.reason,
+                platformLogout: true,
+              },
+            },
+          },
+          {
+            tenantId: access.tenantId,
+            actorType: 'PLATFORM_ADMIN',
+            actorUserId: scope.userId,
+            source: 'PLATFORM',
+          },
+        );
+      }
       await tx.platformSession.deleteMany({
         where: { id: scope.sessionId, userId: scope.userId },
       });
@@ -237,5 +485,6 @@ export class PlatformAuthService {
         data: { type: 'PLATFORM_LOGOUT', userId: scope.userId },
       });
     });
+    this.events?.invalidateSession(scope.sessionId);
   }
 }

@@ -104,6 +104,12 @@ Usar variáveis de ambiente/secret manager.
 
 Nunca commitar `.env`.
 
+Chaves OpenAI e tokens WhatsApp de clínicas ficam cifrados com AES-256-GCM e uma chave
+mestra `TENANT_CREDENTIALS_KEY`, exclusiva e externa ao banco, compartilhada pela API e
+worker. O tenant e o recurso integram o AAD; falha de autenticação da cifra impede o uso.
+O backend não retorna credenciais e nunca usa a chave OpenAI de outro tenant. Segredos
+globais da aplicação Meta permanecem no secret manager/ambiente do servidor.
+
 ## 12. Logs
 
 Não registrar:
@@ -112,6 +118,21 @@ Não registrar:
 - token;
 - secret;
 - payload clínico desnecessário.
+
+## Acesso administrativo temporário a uma clínica
+
+O SUPER_ADMIN pode iniciar um modo explícito de leitura e edição para uma clínica
+ativa, informando motivo. O backend emite cookie HttpOnly separado da sessão de
+plataforma; o token é armazenado apenas como hash e o grant expira em 30 minutos.
+Cada requisição clínica revalida a sessão/MFA de plataforma, concessão SUPER_ADMIN,
+grant, expiração e estado do tenant. O contexto é limitado ao tenant escolhido e
+usa o conjunto de permissões CLINIC_ADMIN; não cria UserTenant nem usuário fictício.
+
+A interface mostra permanentemente clínica e modo de acesso, com ação para sair.
+Início, término, cada leitura e cada escrita são auditados como actor_type
+PLATFORM_ADMIN, source PLATFORM e user_id do SUPER_ADMIN real. Metadados registram
+motivo e rota, sem corpo, conteúdo clínico, cookies ou tokens. Logout global revoga
+o grant e remove os dois cookies. Sessão clínica regular não concede esse acesso.
 
 Mas manter audit trail apropriado.
 
@@ -487,9 +508,13 @@ estão em [audit.md](audit.md). As regras desta seção atualizam as descriçõe
 anteriores de autoria da auditoria nas tasks de tools e engine.
 
 ## TASK-032 — MFA de plataforma
-A reserva histórica de SUPER_ADMIN nas etapas003/005 é resolvida somente pela
-concessão global PlatformAdmin e TOTP confirmado da TASK-032. UserTenant.role não
-ativa esse acesso. Sessão de plataforma separada, expiração1h, anti-replay e
-rate limit persistente. Os campos mfaEnabled/mfaRequired da autenticação clínica
-mantêm o comportamento anterior. Provisionamento, recuperação, chave exclusiva,
-minimização e critérios de saúde estão em [super-admin.md](super-admin.md).
+
+A reserva histórica de SUPER_ADMIN nas etapas003/005 é resolvida pela concessão
+global PlatformAdmin; em ambientes diferentes de desenvolvimento, exige TOTP
+confirmado da TASK-032. O bypass por senha só é permitido com
+`PLATFORM_MFA_DISABLED=true` e `NODE_ENV=development`, para testes locais, e o
+evento de login registra `mfaVerified=false`. UserTenant.role não ativa esse acesso.
+Sessão de plataforma separada, expiração1h, anti-replay e rate limit persistente.
+Os campos mfaEnabled/mfaRequired da autenticação clínica mantêm o comportamento
+anterior. Provisionamento, recuperação, chave exclusiva, minimização e critérios de
+saúde estão em [super-admin.md](super-admin.md).

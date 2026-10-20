@@ -22,7 +22,12 @@ const credentials = z.object({
   password: z.string().min(1).max(128),
 });
 const login = credentials
-  .extend({ code: z.string().regex(/^\d{6}$/) })
+  .extend({
+    code: z
+      .string()
+      .regex(/^\d{6}$/)
+      .optional(),
+  })
   .strict();
 const enrollment = credentials
   .extend({
@@ -38,6 +43,15 @@ export class PlatformAuthController {
   constructor(private readonly auth: PlatformAuthService) {}
   private cookie(value: string, maxAge: number) {
     return serialize(this.auth.cookieName, value, {
+      httpOnly: true,
+      secure: this.auth.config.secure,
+      sameSite: 'strict',
+      path: '/',
+      maxAge,
+    });
+  }
+  private tenantCookie(value: string, maxAge: number) {
+    return serialize(this.auth.tenantAccessCookieName, value, {
       httpOnly: true,
       secure: this.auth.config.secure,
       sameSite: 'strict',
@@ -62,7 +76,10 @@ export class PlatformAuthController {
       req.ip ?? 'unknown',
     );
     res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('Set-Cookie', this.cookie(token, 3600));
+    res.setHeader('Set-Cookie', [
+      this.cookie(token, 3600),
+      this.tenantCookie('', 0),
+    ]);
     return { authenticated: true };
   }
   @Public()
@@ -98,6 +115,6 @@ export class PlatformAuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     await this.auth.logout(req.platform!);
-    res.setHeader('Set-Cookie', this.cookie('', 0));
+    res.setHeader('Set-Cookie', [this.cookie('', 0), this.tenantCookie('', 0)]);
   }
 }

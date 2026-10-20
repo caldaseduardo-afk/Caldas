@@ -18,6 +18,7 @@ import {
   notificationJobId,
   notificationPayloadFromAttempt,
   reconcileAndDispatchNotifications,
+  encryptTenantCredential,
   type NotificationJobPayload,
 } from '@atendente/database';
 import { AppModule } from '../src/app.module';
@@ -81,6 +82,7 @@ test('acceptance conectado: webhook, engine, scheduling, workers, handoff e tena
     aiBaseUrl: process.env.OPENAI_BASE_URL,
     aiTimeout: process.env.OPENAI_TIMEOUT_MS,
     aiOutputTokens: process.env.OPENAI_MAX_OUTPUT_TOKENS,
+    tenantCredentialsKey: process.env.TENANT_CREDENTIALS_KEY,
     whatsappSecret: process.env.WHATSAPP_APP_SECRET,
     whatsappVersion: process.env.WHATSAPP_GRAPH_VERSION,
     whatsappToken: process.env.WHATSAPP_ACCESS_TOKEN_ACCEPTANCE,
@@ -92,6 +94,7 @@ test('acceptance conectado: webhook, engine, scheduling, workers, handoff e tena
   process.env.OPENAI_BASE_URL = 'https://api.openai.com/v1';
   process.env.OPENAI_TIMEOUT_MS = '1000';
   process.env.OPENAI_MAX_OUTPUT_TOKENS = '512';
+  process.env.TENANT_CREDENTIALS_KEY = Buffer.alloc(32, 5).toString('base64');
   process.env.WHATSAPP_APP_SECRET = 'acceptance-app-secret';
   process.env.WHATSAPP_GRAPH_VERSION = 'v23.0';
   process.env.WHATSAPP_ACCESS_TOKEN_ACCEPTANCE = 'acceptance-access-token';
@@ -258,6 +261,18 @@ test('acceptance conectado: webhook, engine, scheduling, workers, handoff e tena
     const tenantB = await client.tenant.create({
       data: { name: 'Tenant sentinela', status: 'ACTIVE', timezone: 'UTC' },
     });
+    for (const tenant of [tenantA, tenantB]) {
+      await client.aIProviderCredential.create({
+        data: {
+          tenantId: tenant.id,
+          ...encryptTenantCredential(
+            'sk-test-fixture-only',
+            tenant.id,
+            'OPENAI_API_KEY',
+          ),
+        },
+      });
+    }
     context.tenantId = tenantA.id;
     const password = 'pilot acceptance password';
     const passwordHash = await hashPassword(password);
@@ -808,6 +823,7 @@ test('acceptance conectado: webhook, engine, scheduling, workers, handoff e tena
         aiBaseUrl: 'OPENAI_BASE_URL',
         aiTimeout: 'OPENAI_TIMEOUT_MS',
         aiOutputTokens: 'OPENAI_MAX_OUTPUT_TOKENS',
+        tenantCredentialsKey: 'TENANT_CREDENTIALS_KEY',
         whatsappSecret: 'WHATSAPP_APP_SECRET',
         whatsappVersion: 'WHATSAPP_GRAPH_VERSION',
         whatsappToken: 'WHATSAPP_ACCESS_TOKEN_ACCEPTANCE',

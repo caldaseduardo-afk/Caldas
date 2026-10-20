@@ -20,7 +20,7 @@ import { AuthController } from './auth.controller';
     TenancyModule,
     PermissionsModule,
   ],
-  exports: [AuthService, AuthConfig],
+  exports: [AuthService, AuthConfig, PlatformAuthService],
   controllers: [AuthController],
   providers: [
     AuthService,

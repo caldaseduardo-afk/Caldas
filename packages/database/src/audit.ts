@@ -22,6 +22,10 @@ export const AUDIT_ACTION_RESOURCES: Partial<
   Record<AuthEventType, AuditResourceType>
 > = {
   PLATFORM_TENANT_VIEWED: 'TENANT',
+  PLATFORM_TENANT_ACCESS_STARTED: 'TENANT',
+  PLATFORM_TENANT_ACCESS_ENDED: 'TENANT',
+  PLATFORM_TENANT_ACCESS_READ: 'TENANT',
+  PLATFORM_TENANT_ACCESS_WRITE: 'TENANT',
   TENANT_CREATED: 'TENANT',
   TENANT_UPDATED: 'TENANT',
   TENANT_DEACTIVATED: 'TENANT',
@@ -134,8 +138,11 @@ export function recordAudit(
     throw new Error('AUDIT_RESOURCE_REQUIRED');
   const actorType = context?.actorType ?? (data.userId ? 'USER' : 'SYSTEM');
   const userId =
-    actorType === 'USER' ? (context?.actorUserId ?? data.userId) : null;
-  if (actorType === 'USER' && !userId) throw new Error('AUDIT_ACTOR_REQUIRED');
+    actorType === 'USER' || actorType === 'PLATFORM_ADMIN'
+      ? (context?.actorUserId ?? data.userId)
+      : null;
+  if ((actorType === 'USER' || actorType === 'PLATFORM_ADMIN') && !userId)
+    throw new Error('AUDIT_ACTOR_REQUIRED');
   const safe = sanitizeAudit(data.changes);
   const changes =
     safe && typeof safe === 'object' && !Array.isArray(safe)

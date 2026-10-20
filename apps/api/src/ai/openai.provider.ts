@@ -73,12 +73,14 @@ function retryAfter(error: unknown): number | undefined {
 /** SDK boundary only: no database, business services, tools or transport side effects. */
 export class OpenAIProvider implements AIProvider {
   constructor(
-    private readonly configuration: () => AIConfiguration,
+    private readonly configuration: (
+      tenantId: string,
+    ) => AIConfiguration | Promise<AIConfiguration>,
     private readonly fetcher?: typeof fetch,
   ) {}
   async generateResponse(request: AIRequest): Promise<AIResponse> {
     const started = performance.now();
-    const config = this.configuration();
+    const config = await this.configuration(request.tenantContext.tenantId);
     if (
       !UUID.test(request.tenantContext.tenantId) ||
       !UUID.test(request.correlationId)

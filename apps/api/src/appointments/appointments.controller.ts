@@ -33,6 +33,11 @@ export class AppointmentsController {
   @Get() @RequirePermissions(...readPermissions) list(@Query() query: unknown) {
     return this.service.list(query);
   }
+  @Get('calendar') @RequirePermissions(...readPermissions) calendar(
+    @Query() query: unknown,
+  ) {
+    return this.service.calendar(query);
+  }
   @Get(':id') @RequirePermissions(...readPermissions) find(
     @Param('id', new ParseUUIDPipe()) id: string,
   ) {

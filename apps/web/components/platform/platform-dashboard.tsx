@@ -9,7 +9,11 @@ const fmt = (value: number | null) =>
     : new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(
         value,
       );
-async function api<T>(path: string, body?: unknown, method?: string): Promise<T> {
+async function api<T>(
+  path: string,
+  body?: unknown,
+  method?: string,
+): Promise<T> {
   const res = await fetch(`/api/super-admin/${path}`, {
     method: method ?? (body === undefined ? 'GET' : 'POST'),
     cache: 'no-store',
@@ -20,7 +24,7 @@ async function api<T>(path: string, body?: unknown, method?: string): Promise<T>
   if (!res.ok)
     throw new Error(
       res.status === 401 || res.status === 403
-        ? 'Acesso restrito. Entre com a conta de plataforma e o autenticador.'
+        ? 'Acesso restrito. Confira a conta de plataforma e o código exigido.'
         : 'Não foi possível concluir. Confira os dados ou tente novamente mais tarde.',
     );
   return res.status === 204 ? (undefined as T) : res.json();
@@ -64,6 +68,7 @@ export function PlatformDashboard() {
     [activeInPeriod, setActiveInPeriod] = useState('');
   const [planNotice, setPlanNotice] = useState('');
   const [planBusy, setPlanBusy] = useState(false);
+  const [accessBusy, setAccessBusy] = useState('');
   const generation = useRef(0);
   async function load(page = 1, tenantId = target) {
     const current = ++generation.current;
@@ -212,13 +217,13 @@ export function PlatformDashboard() {
               </p>
             )}
             <label>
-              Código do autenticador
+              Código do autenticador, quando exigido
               <input
                 name="code"
                 inputMode="numeric"
                 pattern="[0-9]{6}"
                 autoComplete="one-time-code"
-                required={!enrolling || !!secret}
+                required={enrolling && !!secret}
               />
             </label>
             <button className="primary" disabled={busy}>
@@ -417,30 +422,120 @@ export function PlatformDashboard() {
               {target && data.tenant && data.clinics[0]?.plan && (
                 <section className="dashboard-panel">
                   <h2>Plano e consumo · {data.clinics[0].plan.name}</h2>
-                  <p>{data.clinics[0].plan.status} · ciclo {new Date(data.clinics[0].plan.currentPeriodStart).toLocaleDateString('pt-BR')} – {new Date(data.clinics[0].plan.currentPeriodEnd).toLocaleDateString('pt-BR')}{data.clinics[0].plan.overLimit ? ' · acima de ao menos um limite' : ''}</p>
-                  <div className="platform-plan-metrics">{data.clinics[0].plan.keyMetrics.map((m) => <span key={m.metric}>{m.label}: {fmt(m.value)} / {fmt(m.limit)}</span>)}</div>
-                  <form onSubmit={async (event) => {
-                    event.preventDefault();
-                    const form = new FormData(event.currentTarget);
-                    setPlanBusy(true); setPlanNotice('');
-                    try {
-                      const rawOverrides = String(form.get('overrides') ?? '').trim();
-                      const overrides = rawOverrides ? JSON.parse(rawOverrides) : undefined;
-                      await fetch(`/api/super-admin/tenants/${target}/subscription`, {
-                        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ planCode: String(form.get('planCode')), applyAt: String(form.get('applyAt')), status: String(form.get('status')), ...(form.get('graceUntil') ? { graceUntil: `${String(form.get('graceUntil'))}T23:59:59.000Z` } : {}), ...(overrides === undefined ? {} : { overrides }) }),
-                      }).then(async (response) => { if (!response.ok) throw new Error('Não foi possível salvar o plano.'); });
-                      setPlanNotice('Assinatura atualizada.');
-                      await load(1, target);
-                    } catch (reason) { setPlanNotice(reason instanceof Error ? reason.message : 'Falha ao atualizar.'); }
-                    finally { setPlanBusy(false); }
-                  }} className="platform-plan-form">
-                    <label>Plano<select name="planCode" defaultValue={data.clinics[0].plan.code}><option>BASIC</option><option>PRO</option><option>ENTERPRISE</option></select></label>
-                    <label>Aplicar<select name="applyAt" defaultValue="NOW"><option value="NOW">Agora</option><option value="NEXT_CYCLE">No próximo ciclo</option></select></label>
-                    <label>Status<select name="status" defaultValue={data.clinics[0].plan.status}><option>ACTIVE</option><option>TRIAL</option><option>GRACE</option><option>SUSPENDED</option><option>CANCELLED</option></select></label>
-                    <label>Carência até<input name="graceUntil" type="date" /></label>
-                    <label>Overrides JSON<textarea name="overrides" rows={2} placeholder='{"limits":{"maxUnits":8},"capabilities":{"sla_enabled":false}}' /></label>
-                    <button className="primary" disabled={planBusy}>Salvar plano</button>
+                  <p>
+                    {data.clinics[0].plan.status} · ciclo{' '}
+                    {new Date(
+                      data.clinics[0].plan.currentPeriodStart,
+                    ).toLocaleDateString('pt-BR')}{' '}
+                    –{' '}
+                    {new Date(
+                      data.clinics[0].plan.currentPeriodEnd,
+                    ).toLocaleDateString('pt-BR')}
+                    {data.clinics[0].plan.overLimit
+                      ? ' · acima de ao menos um limite'
+                      : ''}
+                  </p>
+                  <div className="platform-plan-metrics">
+                    {data.clinics[0].plan.keyMetrics.map((m) => (
+                      <span key={m.metric}>
+                        {m.label}: {fmt(m.value)} / {fmt(m.limit)}
+                      </span>
+                    ))}
+                  </div>
+                  <form
+                    onSubmit={async (event) => {
+                      event.preventDefault();
+                      const form = new FormData(event.currentTarget);
+                      setPlanBusy(true);
+                      setPlanNotice('');
+                      try {
+                        const rawOverrides = String(
+                          form.get('overrides') ?? '',
+                        ).trim();
+                        const overrides = rawOverrides
+                          ? JSON.parse(rawOverrides)
+                          : undefined;
+                        await fetch(
+                          `/api/super-admin/tenants/${target}/subscription`,
+                          {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              planCode: String(form.get('planCode')),
+                              applyAt: String(form.get('applyAt')),
+                              status: String(form.get('status')),
+                              ...(form.get('graceUntil')
+                                ? {
+                                    graceUntil: `${String(form.get('graceUntil'))}T23:59:59.000Z`,
+                                  }
+                                : {}),
+                              ...(overrides === undefined ? {} : { overrides }),
+                            }),
+                          },
+                        ).then(async (response) => {
+                          if (!response.ok)
+                            throw new Error('Não foi possível salvar o plano.');
+                        });
+                        setPlanNotice('Assinatura atualizada.');
+                        await load(1, target);
+                      } catch (reason) {
+                        setPlanNotice(
+                          reason instanceof Error
+                            ? reason.message
+                            : 'Falha ao atualizar.',
+                        );
+                      } finally {
+                        setPlanBusy(false);
+                      }
+                    }}
+                    className="platform-plan-form"
+                  >
+                    <label>
+                      Plano
+                      <select
+                        name="planCode"
+                        defaultValue={data.clinics[0].plan.code}
+                      >
+                        <option>BASIC</option>
+                        <option>PRO</option>
+                        <option>ENTERPRISE</option>
+                      </select>
+                    </label>
+                    <label>
+                      Aplicar
+                      <select name="applyAt" defaultValue="NOW">
+                        <option value="NOW">Agora</option>
+                        <option value="NEXT_CYCLE">No próximo ciclo</option>
+                      </select>
+                    </label>
+                    <label>
+                      Status
+                      <select
+                        name="status"
+                        defaultValue={data.clinics[0].plan.status}
+                      >
+                        <option>ACTIVE</option>
+                        <option>TRIAL</option>
+                        <option>GRACE</option>
+                        <option>SUSPENDED</option>
+                        <option>CANCELLED</option>
+                      </select>
+                    </label>
+                    <label>
+                      Carência até
+                      <input name="graceUntil" type="date" />
+                    </label>
+                    <label>
+                      Overrides JSON
+                      <textarea
+                        name="overrides"
+                        rows={2}
+                        placeholder='{"limits":{"maxUnits":8},"capabilities":{"sla_enabled":false}}'
+                      />
+                    </label>
+                    <button className="primary" disabled={planBusy}>
+                      Salvar plano
+                    </button>
                     {planNotice && <span role="status">{planNotice}</span>}
                   </form>
                 </section>
@@ -533,6 +628,7 @@ export function PlatformDashboard() {
                         'Tokens',
                         'Última atividade',
                         'Cadastro',
+                        'Acesso',
                       ].map((s) => (
                         <th key={s}>{s}</th>
                       ))}
@@ -553,8 +649,16 @@ export function PlatformDashboard() {
                           </button>
                         </td>
                         <td>{c.status}</td>
-                        <td>{c.plan ? `${c.plan.name} · ${c.plan.status}` : 'Indisponível'}</td>
-                        <td>{c.plan ? `${c.plan.alertCount} alerta(s)${c.plan.overLimit ? ' · acima do limite' : ''}` : '—'}</td>
+                        <td>
+                          {c.plan
+                            ? `${c.plan.name} · ${c.plan.status}`
+                            : 'Indisponível'}
+                        </td>
+                        <td>
+                          {c.plan
+                            ? `${c.plan.alertCount} alerta(s)${c.plan.overLimit ? ' · acima do limite' : ''}`
+                            : '—'}
+                        </td>
                         <td>{c.users}</td>
                         <td>{c.messages}</td>
                         <td>{c.conversations}</td>
@@ -562,6 +666,33 @@ export function PlatformDashboard() {
                         <td>{fmt(c.tokens)}</td>
                         <td>{c.lastActivity ?? 'Sem atividade'}</td>
                         <td>{c.createdAt}</td>
+                        <td>
+                          <button
+                            disabled={!!accessBusy}
+                            onClick={async () => {
+                              const reason = window.prompt(
+                                `Motivo para acessar ${c.name} (mínimo 10 caracteres):`,
+                              );
+                              if (!reason?.trim() || reason.trim().length < 10)
+                                return;
+                              setAccessBusy(c.id);
+                              setError('');
+                              try {
+                                await api(`tenants/${c.id}/access`, {
+                                  reason: reason.trim(),
+                                });
+                                window.location.assign('/');
+                              } catch (failure) {
+                                setError((failure as Error).message);
+                                setAccessBusy('');
+                              }
+                            }}
+                          >
+                            {accessBusy === c.id
+                              ? 'Abrindo…'
+                              : 'Acessar clínica'}
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

@@ -30,7 +30,7 @@ export class AIService {
   ): Promise<AIResponse> {
     const scope =
       await this.authorization.requirePermissions('settings.manage');
-    const configuration = this.config.resolve();
+    const configuration = await this.config.resolve(scope.tenantId);
     const prepared = prepareAIInput(input, [configuration.apiKey]);
     const correlationId = prepared.correlationId ?? randomUUID();
     const modelConfig = {

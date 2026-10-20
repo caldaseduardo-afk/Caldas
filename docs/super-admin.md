@@ -1,6 +1,7 @@
 # Super Admin — TASK-032
 
 ## Escopo e autorização
+
 O dashboard de clínica continua tenant-scoped. A plataforma tem contexto separado
 `PlatformScope { userId, sessionId }`, criado no backend após autenticação de
 plataforma. `PlatformAdmin` é a concessão global equivalente a SUPER_ADMIN; o texto
@@ -17,6 +18,7 @@ Cada abertura do detalhe gera PLATFORM_TENANT_VIEWED com ator real e tenant alvo
 Logs técnicos registram ação, ator, alvo, duração e código seguro; nunca payload.
 
 ## Autenticador e provisionamento
+
 TOTP RFC6238, HMAC-SHA1, seis dígitos,30s, janela de tolerância ±1. Cada passo pode
 ser consumido uma vez, com lock transacional da concessão. Senhas usam o scrypt
 existente. Limite persistido de5 tentativas por identidade e20 porIP em15min,
@@ -25,7 +27,10 @@ limite. Cookie HttpOnly, SameSite Strict, Secure em produção, expiração abso
 Mutações verificam Origin no guard global.
 
 `PLATFORM_MFA_KEY`: chave exclusiva de32bytes em base64, fornecida pelo ambiente/
-secret manager. Sem default. O secret TOTP é cifrado AES-256-GCM com nonce aleatório
+secret manager. Sem default. `PLATFORM_MFA_DISABLED=true` permite login somente por
+senha apenas quando `NODE_ENV=development`; use exclusivamente no Compose local de
+testes. Em qualquer outro ambiente, MFA continua obrigatório mesmo se a variável
+estiver configurada. O secret TOTP é cifrado AES-256-GCM com nonce aleatório
 por escrita e userId como associated data. Nunca copiar a chave para código,
 planilha ou logs. A URI/secret de enrollment é retornada somente após senha e
 convite válidos, com no-store, e renderizada como texto. O usuário adiciona a chave
@@ -38,6 +43,7 @@ pnpm --filter @atendente/api platform:admin
 ```
 
 Configurar previamente no ambiente seguro:
+
 - PLATFORM_ADMIN_EMAIL: usuário existente e ativo;
 - PLATFORM_OPERATOR_USER_ID: identidade do operador real, registrada na auditoria;
 - PLATFORM_ADMIN_ACTION: `grant` ou `revoke`;
@@ -58,6 +64,7 @@ mestre. Rotação de PLATFORM_MFA_KEY exige re-enrollment operacional dos admini
 e revogação das sessões; não trocar a chave silenciosamente em produção.
 
 ## Endpoints
+
 - POST /super-admin/enroll: convite+senha; sem code inicia, com code confirma.
 - POST /super-admin/login: senha+TOTP.
 - POST /super-admin/logout: revoga a sessão atual.
@@ -70,7 +77,28 @@ Interface `/super-admin`: visão geral, clínicas, uso de IA, integrações, job
 incidentes. O menu da home só aparece após capability positiva. UI não autoriza:
 os guards e repository são obrigatórios mesmo sem interface.
 
+## Acesso explícito a uma clínica — TASK-036
+
+Na listagem de clínicas, o Super Admin pode informar o motivo e abrir uma clínica
+ativa. O backend cria grant single-tenant com token aleatório, guarda somente hash,
+expira em 30 minutos e limita a sessão atual a um tenant. Abrir outra clínica
+revoga o grant anterior. Rotas clínicas continuam passando por AuthGuard,
+TenantGuard, PermissionGuard e filtros dos repositories; no lugar de membership,
+o contexto exige a relação do grant com a PlatformSession, usuário e tenant ativos.
+As permissões são as do perfil CLINIC_ADMIN. Operações exclusivas da plataforma
+continuam exigindo `@PlatformOnly`.
+
+Uma faixa persistente mostra “Modo Super Admin”, nome da clínica e que leitura e
+edição são auditadas. A saída revoga o grant; logout da plataforma revoga grants
+ativos e limpa ambos os cookies. Audit registra início, fim, cada leitura e escrita
+com user_id e actor_type PLATFORM_ADMIN, source PLATFORM, tenant, motivo, método e
+rota normalizada. Dados de request/resposta e credenciais não entram nesses eventos.
+O proxy web mantém allowlist explícita para os endpoints necessários. As interfaces
+administrativas reutilizadas são as existentes no produto; módulos sem tela clínica
+própria continuam sem interface até implementação de frontend correspondente.
+
 ## Métricas
+
 Períodos TODAY, LAST_7_DAYS, LAST_30_DAYS, THIS_MONTH, LAST_MONTH e CUSTOM até366dias.
 Datas civis inclusivas convertem para intervalo UTC semiaberto. Global usaUTC;
 detalhe usa timezone do tenant. A série diária segue o mesmo timezone. Filtros de
@@ -102,6 +130,7 @@ independentes da página; listas de uso/integrações/incidentes são paginadas.
 ordenado por requests, depois tenant/provider/model; clínicas por nome/id.
 
 ## Saúde e incidentes
+
 Filas fixas: human-sla, calendar-sync, appointment-notifications,
 conversation-engine, whatsapp-delivery. Apenas waiting/active/delayed/failed;
 nunca job payload, failedReason, stack ou execução arbitrária. Filas não configuradas
@@ -123,6 +152,7 @@ configuração, não prova de conexão atual. lastTestedAt é tentativa de teste
 WhatsApp ERROR/DEGRADED usa código genérico, sem fabricar causa ou timestamp.
 
 ## Minimização e performance
+
 Somente IDs técnicos, nomes das clínicas, estados, contadores e datas. Nenhum nome
 ou documento de paciente, conteúdo de mensagens, telefone, credentialsReference,
 calendarId, settings, tokens ou chaves. A consulta seleciona projeções explícitas;
@@ -137,6 +167,7 @@ Sem cópia de métricas ou cache global com dados sensíveis. Redis falhando nã
 abrir overviewPostgreSQL. Não há endpoint de SQL nem escolha arbitrária de fila.
 
 ## Limites da etapa
+
 Consulta e investigação administrativa somente. Mutação de status depende de regra
 completa de suspensão de ingressos/workers e não foi inventada. Sem billing, planos,
 quotas, retry manual, impersonation, conteúdo clínico ou TASK-033.

@@ -56,7 +56,15 @@ Usuários podem ter escopo por unidade.
 
 O SUPER_ADMIN opera fora do contexto normal de clínica, mas toda operação sobre dados de tenant deve ser explicitamente selecionada e auditada.
 
-Evitar mecanismos ocultos de "bypass tenant".
+Não existe bypass global. Para suporte administrativo, o SUPER_ADMIN inicia
+explicitamente um grant temporário sobre uma clínica ativa, com motivo e sessão
+de plataforma válida. O AuthGuard valida esse grant por requisição e preenche um
+TenantScope limitado à clínica selecionada. TenantContext e repositories continuam
+filtrando por tenant; a validação do grant substitui apenas o vínculo UserTenant
+ausente, nunca o filtro do recurso/tenant. O RBAC aplica as permissões
+CLINIC_ADMIN. O grant não cria membership nem identidade clínica e cada leitura e
+escrita é auditada como PLATFORM_ADMIN real. O modo expira em 30 minutos, pode ser
+encerrado e é revogado no logout de plataforma.
 
 ## 7. Troca de tenant
 
@@ -314,12 +322,14 @@ A consulta estrutural não concede acesso a pacientes nem confirma disponibilida
 final para agendamento.
 
 ## TASK-032 — Contexto de plataforma
+
 PlatformAdmin é concessão global independente de UserTenant. PlatformScope nasce
 após sessão com TOTP confirmado. Repositories de clínica continuam exigindo tenant;
 PlatformRepository é a única camada nova de consultas agregadas globais. Detalhe
 recebe target tenant explícito, limita projeções e registra PLATFORM_TENANT_VIEWED
 com ator real. Nenhum parâmetro do cliente remove filtros. A restrição histórica
 de SUPER_ADMIN permanece para roles de membership; veja [super-admin.md](super-admin.md).
+
 # Planos e assinatura
 
 Cada Tenant tem uma TenantSubscription única. O ciclo e o consumo são

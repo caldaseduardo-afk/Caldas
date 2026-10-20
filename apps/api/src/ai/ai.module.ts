@@ -16,7 +16,7 @@ import { AIUsageRepository } from './ai-usage.repository';
       provide: AI_PROVIDER,
       inject: [AIConfigResolver],
       useFactory: (config: AIConfigResolver) =>
-        new OpenAIProvider(() => config.resolve()),
+        new OpenAIProvider((tenantId) => config.resolve(tenantId)),
     },
   ],
   exports: [AIService, AIConfigResolver],

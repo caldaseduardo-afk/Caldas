@@ -8,7 +8,9 @@ import { HttpAdapterHost } from '@nestjs/core';
 import type { IncomingMessage, Server } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocket, WebSocketServer } from 'ws';
+import { parse } from 'cookie';
 import { AuthService } from '../auth/auth.service';
+import { PlatformAuthService } from '../platform-admin/platform-auth.service';
 import { AuthConfig } from '../auth/auth.config';
 import { readToken } from '../auth/auth.guard';
 import { DatabaseService } from '../auth/database.service';
@@ -44,6 +46,7 @@ export class RealtimeGateway implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly adapter: HttpAdapterHost,
     private readonly auth: AuthService,
+    private readonly platformAuth: PlatformAuthService,
     private readonly config: AuthConfig,
     private readonly database: DatabaseService,
     private readonly events: RealtimeEvents,
@@ -101,12 +104,26 @@ export class RealtimeGateway implements OnModuleInit, OnModuleDestroy {
         reject();
         return;
       }
-      const token = readToken(request, this.config);
-      if (!token) {
+      const cookies = parse(request.headers.cookie ?? '');
+      const platformTenantToken =
+        cookies[this.platformAuth.tenantAccessCookieName];
+      const platformAccess = platformTenantToken
+        ? await this.platformAuth.authenticateTenantAccess(platformTenantToken)
+        : null;
+      const clinicalToken = platformTenantToken
+        ? undefined
+        : readToken(request, this.config);
+      if (!platformAccess && !clinicalToken) {
         reject();
         return;
       }
-      const identity = await this.auth.authenticate(token);
+      const identity = platformAccess
+        ? {
+            identity: platformAccess.identity,
+            sessionId: platformAccess.sessionId,
+            activeTenantId: platformAccess.tenantId,
+          }
+        : await this.auth.authenticate(clinicalToken!);
       if (!identity.activeTenantId) {
         reject();
         return;
@@ -115,6 +132,9 @@ export class RealtimeGateway implements OnModuleInit, OnModuleDestroy {
         userId: identity.identity.id,
         sessionId: identity.sessionId,
         tenantId: identity.activeTenantId,
+        ...(platformAccess
+          ? { platformTenantAccessId: platformAccess.accessId }
+          : {}),
       };
       if (!(await this.valid(scope)) || socket.destroyed || this.stopped) {
         reject();

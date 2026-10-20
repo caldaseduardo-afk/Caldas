@@ -49,8 +49,8 @@ test('proxy não encaminha rotas arbitrárias e limita payload', async (t) => {
   );
   assert.equal(
     (
-      await GET(new Request('http://localhost/api/patients'), {
-        params: Promise.resolve({ path: ['patients'] }),
+      await GET(new Request('http://localhost/api/patients/arbitrary'), {
+        params: Promise.resolve({ path: ['patients', 'arbitrary'] }),
       })
     ).status,
     404,

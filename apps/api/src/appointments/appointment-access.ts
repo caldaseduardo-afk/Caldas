@@ -43,3 +43,15 @@ export const appointmentFields = {
   calendarSyncErrorCode: true,
   calendarLastSyncedAt: true,
 } as const;
+
+
+export const appointmentCalendarSummary = {
+  id: true,
+  startAt: true,
+  endAt: true,
+  status: true,
+  patient: { select: { name: true } },
+  service: { select: { name: true } },
+  provider: { select: { name: true } },
+  unit: { select: { name: true } },
+} as const;

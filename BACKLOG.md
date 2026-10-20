@@ -446,3 +446,32 @@ Estrutura básica de planos, limites e alertas.
 Fluxo completo:
 
 WhatsApp → IA → disponibilidade → HOLD → agendamento → confirmação → humano → auditoria.
+
+---
+
+## TASK-036 — Acesso de Super Admin às clínicas
+
+### Objetivo
+
+Permitir que o SUPER_ADMIN abra uma clínica em modo explícito de administrador
+para consultar e editar os recursos daquela clínica.
+
+### Entrega
+
+- acesso temporário e limitado a um tenant por vez;
+- reaproveitar as telas e APIs clínicas existentes, sem criar membership ou
+  personificar usuário da clínica;
+- identificar o modo na interface e permitir encerrá-lo;
+- registrar início, fim, leituras e alterações com o ator SUPER_ADMIN real;
+- revalidar sessão global, grant, tenant e expiração nas rotas de negócio;
+- manter as fronteiras de autorização fora do escopo do tenant selecionado.
+
+### Aceite
+
+- sem membership clínico, o Super Admin pode abrir e editar uma clínica selecionada;
+- sessão clínica comum não consegue ativar nem reutilizar acesso de plataforma;
+- tenantId recebido do navegador não autoriza o escopo;
+- sessão expirada/revogada, grant revogado e tenant inativo bloqueiam as operações;
+- cada requisição no modo registra ator, clínica alvo e origem de plataforma;
+- encerrar o modo revoga imediatamente o grant e limpa o cookie;
+- testes provam isolamento e auditoria em leitura e escrita.

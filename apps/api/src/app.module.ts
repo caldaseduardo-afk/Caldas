@@ -23,6 +23,7 @@ import { KnowledgeModule } from './knowledge/knowledge.module';
 import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { CalendarIntegrationsModule } from './calendar-integrations/calendar-integrations.module';
+import { IntegrationSettingsModule } from './integration-settings/integration-settings.module';
 import { AuthModule } from './auth/auth.module';
 import { PlansModule } from './plans/plans.module';
 import { HealthController } from './health.controller';
@@ -56,6 +57,7 @@ import { RateLimitService } from './rate-limit/rate-limit.service';
     InboxModule,
     RealtimeModule,
     CalendarIntegrationsModule,
+    IntegrationSettingsModule,
     DatabaseModule,
   ],
   controllers: [HealthController],

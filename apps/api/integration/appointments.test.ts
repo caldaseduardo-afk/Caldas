@@ -782,6 +782,31 @@ test('Consultas: conversão, estados, histórico, isolamento e concorrência Pos
         assert.ok(rows.length > 0);
         assert.ok(rows.every((x) => x.patientId === pa.id));
         assert.ok(rows.every((x) => !('notes' in x) && !('createdById' in x)));
+        const calendarResponse = await request(
+          `/appointments/calendar?${new URLSearchParams({ startAt: at(1, '00:00'), endAt: at(31, '23:59') })}`,
+          a,
+        );
+        assert.equal(calendarResponse.status, 200);
+        const calendarRows = (await calendarResponse.json()) as Array<{
+          id: string;
+          patient: { name: string };
+          service: { name: string };
+          provider: { name: string };
+          unit: { name: string };
+          notes?: string | null;
+          cancellationReason?: string | null;
+        }>;
+        assert.ok(calendarRows.length > 0);
+        assert.ok(calendarRows.every((x) => x.patient.name === 'Paciente A'));
+        assert.ok(calendarRows.every((x) => x.service.name === 'Consulta'));
+        assert.ok(calendarRows.every((x) => x.provider.name === 'Profissional A'));
+        assert.ok(calendarRows.every((x) => x.unit.name === 'Unidade A'));
+        assert.ok(calendarRows.every((x) => !('notes' in x) && !('cancellationReason' in x)));
+        assert.ok(!calendarRows.some((x) => x.patient.name === 'Paciente B'));
+        assert.equal(
+          (await request('/appointments/calendar?startAt=invalid&endAt=invalid', doctor)).status,
+          400,
+        );
         assert.equal(
           (await request(`/appointments/${first.id}`, doctor)).status,
           200,

@@ -129,16 +129,20 @@ para envio foi a [coleção Meta](https://www.postman.com/meta/whatsapp-business
 a verificação segue o [contrato de webhook publicado pela Meta](https://whatsapp.github.io/WhatsApp-Nodejs-SDK/api-reference/webhooks/start/).
 
 Uma aplicação Meta atende várias Integration. App secret e verify token são globais por
-aplicação; access token resolve por `credentialsReference` em variável exclusivamente
-`WHATSAPP_ACCESS_TOKEN_<ALIAS>`, injetada no worker. Produção deve injetá-la via secret
-manager/orquestrador; o adaptador atual resolve ambiente. Não guardar token em settings
-(o campo está reservado e deve ser null). Referência não é autorização para acessar
-variáveis arbitrárias como DATABASE_URL/AUTH_SECRET.
+aplicação. O Clinic Admin configura por clínica o access token e IDs do número/conta na
+tela `/settings/integrations`. O token fica cifrado no registro da Integration com
+AES-256-GCM e AAD de tenant + Integration. A chave mestra `TENANT_CREDENTIALS_KEY` é
+compartilhada apenas pela API e worker via secret manager/ambiente e nunca é persistida
+no banco. Integrações legadas continuam resolvendo `credentialsReference` como alias
+`WHATSAPP_ACCESS_TOKEN_<ALIAS>` no worker até serem rotacionadas pela tela. `settings`
+permanece nulo. Referências não autorizam leitura de variáveis arbitrárias.
 
-Provisionar/rotacionar/ativar/desativar pelo comando administrativo `pnpm whatsapp:configure`.
-Requer acesso operacional ao banco/segredos e verificação prévia de titularidade do número;
-não é endpoint de CLINIC_ADMIN nem onboarding público. Tenant/número/WABA não podem ser
-reatribuídos pelo comando. Duas clínicas nunca reivindicam o mesmo phone_number_id.
+Provisionamento inicial pode ocorrer por `/settings/integrations`, disponível a usuários
+com `settings.manage`, ou pelo comando de operador `pnpm whatsapp:configure`. O formulário
+permite cadastrar ou rotacionar token, mas não trocar os IDs de uma Integration existente;
+a verificação de titularidade do número continua sendo uma etapa operacional externa.
+Tenant/número/WABA não podem ser reatribuídos pelo comando. Duas clínicas nunca reivindicam
+o mesmo phone_number_id.
 `ERROR` por rejeição de credencial suspende novos envios; ingresso/recibos continuam.
 `DISABLED` bloqueia ingresso/recibos/envio. Corrigir credencial e reativar é decisão operacional.
 
@@ -214,6 +218,12 @@ interatividade existem no adaptador, mas o composer expõe somente texto. Notifi
 não é chamada, não há envio automático/IA e não há TASK-021.
 
 ## AI Provider — TASK-021
+
+Chave OpenAI é configurada por clínica na mesma área `/settings/integrations`, armazenada
+cifrada em `ai_provider_credentials`. A API resolve a chave exclusivamente pelo tenant
+autorizado da requisição e falha fechada se ela estiver ausente ou não puder ser decifrada;
+não há fallback para a chave global `OPENAI_API_KEY`. Modelo, URL, limites e parâmetros
+operacionais continuam sob configuração de ambiente.
 
 `AIProvider` é contrato do domínio; `OpenAIProvider` é o único importador do SDK OpenAI.
 Usa Responses API, `store:false`, sem tools e sem acesso ao banco. `AIService` interno

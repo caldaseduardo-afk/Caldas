@@ -4,6 +4,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import {
   OPERATIONAL_ROLES,
   PERMISSIONS,
+  ROLE_PERMISSIONS,
   type PermissionName,
   type Prisma,
 } from '@atendente/database';
@@ -62,6 +63,15 @@ export function authorizedTenantFilter(
     if (permissions.some((permission) => !enginePermissions.has(permission)))
       throw new ForbiddenException('Permissão insuficiente.');
     return { id: scope.tenantId, status: 'ACTIVE' };
+  }
+  if (scope.platformTenantAccessId) {
+    if (
+      permissions.some(
+        (permission) => !ROLE_PERMISSIONS.CLINIC_ADMIN.includes(permission),
+      )
+    )
+      throw new ForbiddenException('Permissão insuficiente.');
+    return scopedTenantFilter(scope);
   }
   return {
     AND: [

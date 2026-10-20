@@ -45,6 +45,10 @@ export class AppointmentsService {
     await this.authorization.requirePermissions(...readPermissions);
     return this.repository.list(appointmentsQuery(query));
   }
+  async calendar(query: unknown) {
+    await this.authorization.requirePermissions(...readPermissions);
+    return this.repository.calendar(appointmentsQuery(query));
+  }
   async listForAI(
     patientId: string,
     contactId: string,

@@ -86,7 +86,7 @@ export class AIConfigurationService {
   }
   async effective(): Promise<EffectiveAIConfiguration> {
     const row = await this.repository.production();
-    const global = this.global.resolve().modelConfig;
+    const global = this.global.modelConfiguration();
     if (!row)
       return {
         versionId: null,

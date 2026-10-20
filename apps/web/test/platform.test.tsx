@@ -23,6 +23,35 @@ test('proxy de plataforma permite apenas rotas e métodos fixos', () => {
   assert.equal(allowedPath('DELETE', 'super-admin/overview'), false);
   assert.equal(allowedPath('GET', 'plans/current'), true);
   assert.equal(allowedPath('GET', 'plans/catalog'), true);
-  assert.equal(allowedPath('PATCH', `super-admin/tenants/${'00000000-0000-4000-8000-000000000000'}/subscription`), true);
-  assert.equal(allowedPath('POST', `super-admin/tenants/${'00000000-0000-4000-8000-000000000000'}/subscription`), false);
+  assert.equal(
+    allowedPath(
+      'PATCH',
+      `super-admin/tenants/${'00000000-0000-4000-8000-000000000000'}/subscription`,
+    ),
+    true,
+  );
+  assert.equal(
+    allowedPath(
+      'POST',
+      `super-admin/tenants/${'00000000-0000-4000-8000-000000000000'}/subscription`,
+    ),
+    false,
+  );
+});
+test('proxy limita modo de acesso da plataforma e recursos clínicos a rotas explícitas', () => {
+  const tenant = '00000000-0000-4000-8000-000000000000';
+  assert.equal(
+    allowedPath('POST', `super-admin/tenants/${tenant}/access`),
+    true,
+  );
+  assert.equal(allowedPath('GET', 'super-admin/tenant-access'), true);
+  assert.equal(allowedPath('POST', 'super-admin/tenant-access/end'), true);
+  assert.equal(
+    allowedPath('DELETE', `super-admin/tenants/${tenant}/access`),
+    false,
+  );
+  assert.equal(allowedPath('GET', `clinics/${tenant}`), true);
+  assert.equal(allowedPath('PATCH', `clinics/${tenant}`), true);
+  assert.equal(allowedPath('GET', 'clinics/arbitrary'), false);
+  assert.equal(allowedPath('POST', 'clinics'), false);
 });

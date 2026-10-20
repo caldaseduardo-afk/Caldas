@@ -9,7 +9,7 @@ test('proxy restringe rotas e métodos, sem destino arbitrário', () => {
   for (const path of [
     'https://evil.test',
     '../auth/me',
-    'patients',
+    'analytics/global',
     'auth/create-user',
   ])
     assert(!allowedPath('GET', path));

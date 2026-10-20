@@ -16,6 +16,7 @@ import { useRemote } from '../../lib/use-remote';
 import { ConversationList } from './conversation-list';
 import { MessageList, MessageComposer } from './messages';
 import { ContextPanel } from './context-panel';
+import { TopNavigation } from './top-navigation';
 function ActiveConversation({
   id,
   session,
@@ -286,11 +287,14 @@ export function Inbox() {
   return (
     <div className="application">
       <header className="app-header">
-        <a className="brand" href="/conversations">
-          <span className="brand-mark">a</span>Atendente IA
-          <span className="brand-divider">/</span>
-          <span>Inbox</span>
+        <a className="brand" href="/conversations" aria-label="Atendente IA, início">
+          <span className="brand-mark" aria-hidden="true">✳</span>
+          <span className="brand-copy">
+            <strong>Atendente IA</strong>
+            <small>Atendimento da clínica</small>
+          </span>
         </a>
+        <TopNavigation />
         <div className="account-controls">
           {identity.data && (
             <>
@@ -313,7 +317,7 @@ export function Inbox() {
                   </option>
                 ))}
               </select>
-              <span>{identity.data.name}</span>
+              <span className="account-name">{identity.data.name}</span>
               <button
                 disabled={busy}
                 onClick={() => void mutate('auth/logout')}
@@ -366,7 +370,8 @@ export function Inbox() {
         )
       )}
       <footer className="app-footer">
-        Inbox · {session.data?.tenant.timezone ?? 'Acesso autenticado'}
+        <span><i className="connection-dot" /> {session.data ? 'Clínica selecionada' : 'Sessão autenticada'}</span>
+        <span>{session.data?.tenant.timezone ?? 'Acesso autenticado'}</span>
         <button onClick={() => setRevision((r) => r + 1)} disabled={busy}>
           Atualizar inbox
         </button>

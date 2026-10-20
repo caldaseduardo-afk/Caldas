@@ -14,6 +14,7 @@ export interface TenantScope {
   readonly userId: string;
   readonly sessionId: string;
   readonly tenantId: string;
+  readonly platformTenantAccessId?: string;
 }
 export const enabledUser = {
   status: 'ACTIVE' as const,
@@ -24,6 +25,24 @@ export const enabledUser = {
 export function scopedTenantFilter(
   scope: TenantScope,
 ): Prisma.TenantWhereInput {
+  if (scope.platformTenantAccessId) {
+    return {
+      id: scope.tenantId,
+      status: 'ACTIVE',
+      platformTenantAccesses: {
+        some: {
+          id: scope.platformTenantAccessId,
+          tenantId: scope.tenantId,
+          userId: scope.userId,
+          platformSessionId: scope.sessionId,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+          user: { status: 'ACTIVE', platformAdmin: { active: true } },
+          platformSession: { expiresAt: { gt: new Date() } },
+        },
+      },
+    };
+  }
   return {
     id: scope.tenantId,
     status: 'ACTIVE',
@@ -61,12 +80,22 @@ export class TenantContext {
     };
   }
 
+  isPlatformTenantAccess() {
+    return !!this.request.platformTenantAccessId;
+  }
+
   async requireTenant(): Promise<TenantScope> {
     const identity = this.requireIdentity();
     const tenantId = this.request.activeTenantId;
     if (!tenantId)
       throw new ForbiddenException('Selecione um tenant disponível.');
-    const scope = Object.freeze({ ...identity, tenantId });
+    const scope = Object.freeze({
+      ...identity,
+      tenantId,
+      ...(this.request.platformTenantAccessId
+        ? { platformTenantAccessId: this.request.platformTenantAccessId }
+        : {}),
+    });
     const tenant = await this.database.client.tenant.findFirst({
       where: scopedTenantFilter(scope),
       select: { id: true },

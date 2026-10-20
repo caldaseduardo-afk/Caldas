@@ -1,5 +1,9 @@
 import { AuthorizationService } from '../permissions/authorization.service';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { TenantContext } from './tenant.context';
 import { TenantRepository } from './tenant.repository';
 import { UnitRepository } from '../units/unit.repository';
@@ -29,10 +33,16 @@ export class TenancyService {
   ) {}
   listAvailable() {
     this.context.requireIdentity();
+    if (this.context.isPlatformTenantAccess())
+      return this.tenants.current().then((tenant) => [tenant]);
     return this.tenants.listAvailable();
   }
   select(body: unknown) {
     this.context.requireIdentity();
+    if (this.context.isPlatformTenantAccess())
+      throw new ForbiddenException(
+        'O tenant do modo Super Admin não pode ser alterado.',
+      );
     return this.tenants.select(tenantSelection(body));
   }
   async current() {

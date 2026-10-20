@@ -64,6 +64,67 @@ test('TASK-032: plataforma real, três E2Es, MFA, isolamento e minimização', a
     );
     const cookie = `platform_session=${token}`;
     const scope = await auth.authenticate(token);
+    await t.test(
+      'login sem TOTP só funciona com bypass explícito em desenvolvimento',
+      async () => {
+        const user = await db.user.create({
+          data: {
+            name: 'Local platform test',
+            email: randomUUID() + '@test.local',
+            passwordHash: await hashPassword(password),
+          },
+        });
+        await db.platformAdmin.create({
+          data: { userId: user.id, active: true },
+        });
+        const previousNodeEnv = process.env.NODE_ENV;
+        const previousMfaDisabled = process.env.PLATFORM_MFA_DISABLED;
+        const previousAuthOrigin = process.env.AUTH_ORIGIN;
+        try {
+          process.env.NODE_ENV = 'development';
+          process.env.PLATFORM_MFA_DISABLED = 'true';
+          process.env.AUTH_ORIGIN = 'http://localhost:3000';
+          const localLogin = await fetch(url + '/super-admin/login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Origin: process.env.AUTH_ORIGIN,
+            },
+            body: JSON.stringify({ email: user.email, password }),
+          });
+          assert.equal(localLogin.status, 200);
+          const localCookie = localLogin.headers.get('set-cookie')!;
+          assert.equal(
+            (
+              await fetch(url + '/super-admin/session', {
+                headers: { cookie: localCookie.split(';')[0]! },
+              })
+            ).status,
+            200,
+          );
+
+          process.env.NODE_ENV = 'production';
+          process.env.AUTH_ORIGIN = 'https://platform.test';
+          await assert.rejects(
+            auth.login(
+              user.email,
+              password,
+              undefined,
+              'production-platform-test',
+            ),
+            /Credenciais inválidas/,
+          );
+        } finally {
+          if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+          else process.env.NODE_ENV = previousNodeEnv;
+          if (previousMfaDisabled === undefined)
+            delete process.env.PLATFORM_MFA_DISABLED;
+          else process.env.PLATFORM_MFA_DISABLED = previousMfaDisabled;
+          if (previousAuthOrigin === undefined) delete process.env.AUTH_ORIGIN;
+          else process.env.AUTH_ORIGIN = previousAuthOrigin;
+        }
+      },
+    );
     await assert.rejects(
       () =>
         auth.login(
@@ -225,7 +286,51 @@ test('TASK-032: plataforma real, três E2Es, MFA, isolamento e minimização', a
     }
     const a = await clinic('A', 5, 100, 20, 10, 10000, 'ACTIVE'),
       b = await clinic('B', 3, 50, 8, 5, 5000, 'ACTIVE');
-    await clinic('C', 2, 0, 0, 0, 0, 'SUSPENDED');
+    const c = await clinic('C', 2, 0, 0, 0, 0, 'SUSPENDED');
+    await t.test('TASK-036: acesso temporário, edição auditada e isolamento por clínica', async () => {
+      const start = await fetch(url + `/super-admin/tenants/${a.tenant.id}/access`, {
+        method: 'POST',
+        headers: { cookie, Origin: process.env.AUTH_ORIGIN!, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'Suporte solicitado pela clínica' }),
+      });
+      assert.equal(start.status, 200);
+      const accessCookie = start.headers.getSetCookie().find((value) => value.startsWith('platform_tenant='));
+      assert.ok(accessCookie?.includes('HttpOnly'));
+      assert.match(accessCookie ?? '', /Max-Age=1[0-8][0-9]{2}/);
+      const clinicCookie = accessCookie!.split(';')[0]!;
+      const own = await fetch(url + `/clinics/${a.tenant.id}`, { headers: { cookie: clinicCookie } });
+      assert.equal(own.status, 200);
+      const crossTenant = await fetch(url + `/clinics/${b.tenant.id}`, { headers: { cookie: clinicCookie } });
+      assert.equal(crossTenant.status, 404);
+      const rejected = await fetch(url + `/super-admin/tenants/${c.tenant.id}/access`, {
+        method: 'POST',
+        headers: { cookie, Origin: process.env.AUTH_ORIGIN!, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'Acesso à clínica suspensa' }),
+      });
+      assert.equal(rejected.status, 403);
+      const edited = await fetch(url + `/clinics/${a.tenant.id}`, {
+        method: 'PATCH',
+        headers: { cookie: clinicCookie, Origin: process.env.AUTH_ORIGIN!, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: prefix + 'A temporarily updated', status: 'ACTIVE', timezone: 'America/Sao_Paulo' }),
+      });
+      assert.equal(edited.status, 200);
+      await db.tenant.update({ where: { id: a.tenant.id }, data: { name: prefix + 'A' } });
+      const audit = await db.authEvent.findFirst({
+        where: { tenantId: a.tenant.id, type: 'TENANT_UPDATED', resourceId: a.tenant.id },
+      });
+      assert.equal(audit?.userId, admin.id);
+      assert.equal(audit?.actorType, 'PLATFORM_ADMIN');
+      assert.equal(audit?.source, 'PLATFORM');
+      const end = await fetch(url + '/super-admin/tenant-access/end', {
+        method: 'POST', headers: { cookie: `${cookie}; ${clinicCookie}`, Origin: process.env.AUTH_ORIGIN! },
+      });
+      assert.equal(end.status, 200);
+      assert.equal((await fetch(url + `/clinics/${a.tenant.id}`, { headers: { cookie: clinicCookie } })).status, 401);
+      assert.ok(await db.authEvent.findFirst({ where: { tenantId: a.tenant.id, userId: admin.id, actorType: 'PLATFORM_ADMIN', source: 'PLATFORM', type: 'PLATFORM_TENANT_ACCESS_READ' } }));
+      assert.ok(await db.authEvent.findFirst({ where: { tenantId: a.tenant.id, userId: admin.id, actorType: 'PLATFORM_ADMIN', source: 'PLATFORM', type: 'PLATFORM_TENANT_ACCESS_WRITE' } }));
+      assert.ok(await db.authEvent.findFirst({ where: { tenantId: a.tenant.id, userId: admin.id, actorType: 'PLATFORM_ADMIN', type: 'PLATFORM_TENANT_ACCESS_STARTED' } }));
+      assert.ok(await db.authEvent.findFirst({ where: { tenantId: a.tenant.id, userId: admin.id, actorType: 'PLATFORM_ADMIN', type: 'PLATFORM_TENANT_ACCESS_ENDED' } }));
+    });
     await t.test('TASK-033: assinatura default, agregados isolados e mudança administrativa auditada', async () => {
       const initial = await db.tenantSubscription.findUnique({ where: { tenantId: a.tenant.id } });
       assert.equal(initial?.planCode, 'BASIC');

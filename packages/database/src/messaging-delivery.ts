@@ -7,7 +7,7 @@ import {
 import type { PrismaClient, Prisma } from './generated/prisma/client';
 import { OPERATIONAL_ROLES } from './rbac-catalog';
 import { databaseNow } from './hold-expiration';
-import { whatsappAccessToken } from './whatsapp-provider';
+import { resolveIntegrationAccessToken } from './tenant-credentials';
 export interface MessagingNotice {
   tenantId: string;
   conversationId: string;
@@ -81,7 +81,7 @@ export async function deliverMessage(
   client: PrismaClient,
   input: unknown,
   provider: MessagingProvider,
-  resolveToken = whatsappAccessToken,
+  resolveToken?: (reference: string) => string,
 ): Promise<MessagingNotice | null> {
   const { tenantId, messageId } = messagingPayload(input),
     started = Date.now();
@@ -214,7 +214,12 @@ export async function deliverMessage(
     providerMessageId = await provider.sendTextMessage(
       {
         phoneNumberId: row.integration.phoneNumberId,
-        accessToken: resolveToken(row.integration.credentialsReference),
+        accessToken: resolveToken
+          ? resolveToken(row.integration.credentialsReference)
+          : resolveIntegrationAccessToken({
+              ...row.integration,
+              integrationId: row.integration.id,
+            }),
         to: row.message.recipientAddress,
         messageId,
       },

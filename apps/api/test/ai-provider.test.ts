@@ -365,7 +365,7 @@ test('logs só contêm métricas e falha de persistência não repete inferênci
     {
       requirePermissions: async () => ({ tenantId: randomUUID() }),
     } as unknown as AuthorizationService,
-    { resolve: configuration } as AIConfigResolver,
+    { resolve: configuration } as unknown as AIConfigResolver,
     {
       begin: async () => async () => {
         throw new Error('database secret');
